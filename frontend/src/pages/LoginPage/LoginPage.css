@@ -1,0 +1,117 @@
+.login-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+    background-color: #f9f9f9;
+}
+
+.login-container{
+    display: flex;
+    flex-direction: column;
+    border: 2px solid transparent;
+    max-width: 25rem;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Logo */
+.logo{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 2rem;
+    width: 100%;
+}
+
+.logo h1{
+    color: var(--primary);
+    margin-bottom: 0;
+    font-weight: 600;
+    font-size: 1.8rem;
+}
+
+.logo p{
+    color: var(--primary);
+    opacity: 80%;
+}
+
+/* Form */
+.form{
+    display: flex;
+    flex-direction: column;
+    opacity: 80%;
+}
+
+.form p{
+    margin-top: 0.5rem;
+}
+
+.form input{
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    border-radius: 0.25rem;
+    border: 2px solid #3f3f3f59;
+    width: 100%;
+    outline: none;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Roles */
+.roles-grid{
+    display: flex;
+    margin: 0.5em 0;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
+
+.roles-items {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    text-align: center;
+    height: 2rem;
+    max-width: 100%;
+    min-width: 8rem;
+    margin-top: 0.5em;
+    cursor: pointer;
+    border: 1px solid black;
+    transition: all 0.3s ease-in-out;
+}
+
+.roles-items:hover,
+.roles-items.selected {
+    background-color: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.login-container button{
+    padding: 0.5rem;
+    margin-top: 1rem;
+    border-radius: 0.25rem;
+    border: none;
+    background-color: var(--primary);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+}
+
+.login-container button:hover{
+    background-color: var(--secondary);
+}
+
+.login-container .FPW{
+    align-self: center;
+    margin: 0.8rem 0;
+    color: rgb(96, 162, 255);
+    cursor: pointer;
+}
+
+.login-container .FPW:hover{
+    text-decoration: underline;
+}

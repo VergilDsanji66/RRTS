@@ -1,0 +1,453 @@
+.supervisor-page{
+    display: flex;
+    flex-direction: column;
+}
+
+.supervisor-container{
+    display: flex;
+    flex-direction: column;
+    margin: 0 1rem;
+    gap: 1rem;
+    border-radius: 1rem;
+    background-color: var(--background);
+    padding: 1rem 3rem;
+}
+
+.supervisor-container .h1-top{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.supervisor-container .h1-top h1{
+    font-size: 1.5em;
+    color: var(--primary);
+}
+
+.supervisor-container .h1-top button{
+    padding: 0.5em 1em;
+    background-color: var(--primary);
+    color: var(--light);
+    border: none;
+    border-radius: 0.5em;
+    cursor: pointer;
+}
+
+.supervisor-container .h1-top button:hover{
+    background-color: var(--secondary);
+}
+
+.today-report{
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem 0.8rem;
+    background-color: var(--light);
+    box-shadow: 10px 10px 10px 5px rgba(0, 0, 0, 0.632);
+    border-radius: 1rem;
+    border: 1px solid var(--dark-background);
+}
+
+.today-report .reportShowcase{
+    display: flex;
+    background-color: transparent;
+    width: 100%;
+}
+
+.report{
+    padding: 0.5rem 2rem;
+    gap: 0.5rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(0, 0, 0, 0.118);
+    border-radius: 1rem;
+    border-left: 5px solid var(--primary);
+}
+
+.report .report-top, .report .location{
+    display: flex;
+    gap: 1rem;
+}
+
+.report .description{
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+
+/* SupervisorPage.css */
+.supervisor-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--dark-background);
+}
+
+.supervisor-container {
+    display: flex;
+    flex-direction: column;
+    margin: 0 1rem;
+    gap: 1.5rem;
+    border-radius: 1rem;
+    background-color: var(--background);
+    padding: 2rem 3rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.supervisor-container .h1-top,
+.supervisor-container .h1-mid {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.supervisor-container .h1-top h1,
+.supervisor-container .h1-mid h1 {
+    font-size: 1.8rem;
+    color: var(--primary);
+    margin: 0;
+}
+
+.supervisor-container .h1-top button {
+    padding: 0.6rem 1.2rem;
+    background-color: var(--primary);
+    color: var(--light);
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.supervisor-container .h1-top button:hover {
+    background-color: var(--secondary);
+    transform: translateY(-2px);
+}
+
+.today-report {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    padding: 1.5rem;
+    background-color: var(--light);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 1rem;
+    border: 1px solid var(--dark-background);
+}
+
+.report {
+    padding: 1rem 1.5rem;
+    gap: 0.8rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 0.8rem;
+    border-left: 5px solid var(--primary);
+    transition: transform 0.2s ease;
+}
+
+.report:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.report .report-top,
+.report .location {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.report .report-top h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--dark);
+}
+
+.report .report-top .status-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.report .report-top .status-badge.pending {
+    background-color: #ffcc00;
+    color: #333;
+}
+
+.report .report-top .status-badge.in-progress {
+    background-color: #0066cc;
+    color: white;
+}
+
+.report .report-top .status-badge.completed {
+    background-color: #00aa00;
+    color: white;
+}
+
+.report .location p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+}
+
+.report .description {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+
+.report .description p {
+    margin: 0;
+    color: var(--dark);
+    line-height: 1.4;
+}
+
+/* Assessment Section Styles */
+.Assessment {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background-color: var(--light);
+    border-radius: 1rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.complaint-selection,
+.confirmation-and-type,
+.Repair-Priority,
+.Resource,
+.Assessment-Report {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.complaint-selection h3,
+.confirm h3,
+.Type h3,
+.Repair-Priority h3,
+.resources h3,
+.Assessment-Report h3,
+.resource-list h3 {
+    margin: 0;
+    color: var(--primary);
+    font-size: 1.2rem;
+}
+
+.confirmation-and-type {
+    display: flex;
+    flex-direction: row;
+    gap: 2rem;
+}
+
+.confirm,
+.Type {
+    flex: 1;
+}
+
+select, input[type="number"], textarea {
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    width: 100%;
+    background-color: white;
+}
+
+select:focus, input[type="number"]:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+/* Priority Options */
+.priority-options {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.priority-options label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.priority-options input[type="checkbox"] {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: var(--primary);
+}
+
+/* Resource Section */
+.Resource {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.resources {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.resources .AMQ {
+    padding: 0.6rem;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.resources .AMQ:hover {
+    background-color: var(--secondary);
+}
+
+.resources .AMQ:disabled {
+    background-color: var(--gray);
+    cursor: not-allowed;
+}
+
+.resource-list {
+    grid-column: 1 / -1;
+    padding: 1rem;
+    background-color: rgba(0, 0, 0, 0.03);
+    border-radius: 0.5rem;
+}
+
+.resource-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.resource-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 1rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.resource-list-item span {
+    font-weight: 500;
+}
+
+.remove-btn {
+    padding: 0.3rem 0.6rem;
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 0.3rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.remove-btn:hover {
+    background-color: #cc0000;
+}
+
+/* Submit Button */
+.submit-button {
+    padding: 0.8rem 1.5rem;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    align-self: flex-end;
+    margin-top: 1rem;
+}
+
+.submit-button:hover {
+    background-color: var(--secondary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.submit-button:disabled {
+    background-color: var(--gray);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Success Message */
+.success-message {
+    padding: 1rem;
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 0.5rem;
+    text-align: center;
+    margin-top: 1rem;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading State */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-size: 1.2rem;
+    color: var(--primary);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .supervisor-container {
+        padding: 1.5rem;
+    }
+    
+    .confirmation-and-type {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .Resource {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .supervisor-container .h1-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .priority-options {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}

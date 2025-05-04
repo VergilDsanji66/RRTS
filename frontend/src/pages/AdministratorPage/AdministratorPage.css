@@ -1,0 +1,304 @@
+/* AdministratorPage.css */
+.admin-dashboard {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--background);
+    padding: 1rem;
+}
+
+.h1-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.h1-top h2 {
+    font-size: 1.8rem;
+    color: var(--primary);
+    margin: 0;
+}
+
+.h1-top button {
+    padding: 0.6rem 1.2rem;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.h1-top button:hover {
+    background-color: var(--secondary);
+    transform: translateY(-2px);
+}
+
+.options {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.option {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    color: var(--dark-gray);
+}
+
+.option:hover {
+    background-color: rgba(var(--primary-rgb), 0.1);
+    color: var(--primary);
+}
+
+.option.active {
+    background-color: var(--primary);
+    color: white;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.table-header {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    background-color: var(--primary);
+    color: white;
+    padding: 0.8rem 1rem;
+    font-weight: 600;
+}
+
+.header-cell {
+    padding: 0.8rem 1rem;
+    text-align: left;
+}
+
+.table-items {
+    display: flex;
+    flex-direction: column;
+}
+
+.table-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+.table-row:last-child {
+    border-bottom: none;
+}
+
+.table-row:hover {
+    background-color: rgba(var(--primary-rgb), 0.05);
+}
+
+.table-cell {
+    padding: 0.8rem 1rem;
+}
+
+.action-btn {
+    padding: 0.4rem 0.8rem;
+    background-color: var(--secondary);
+    color: white;
+    border: none;
+    border-radius: 0.3rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.add-Data {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-top: 1.5rem;
+}
+
+.add-Data h2 {
+    color: var(--primary);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.4rem;
+}
+
+.add-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--dark-gray);
+}
+
+.add-form input,
+.add-form select {
+    width: 100%;
+    padding: 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.add-form input:focus,
+.add-form select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+}
+
+.submit-btn {
+    padding: 0.7rem 1.5rem;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    align-self: flex-start;
+    grid-column: 1 / -1;
+    max-width: 200px;
+}
+
+.submit-btn:hover {
+    background-color: var(--secondary);
+    transform: translateY(-2px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .options {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .table-header,
+    .table-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .add-form {
+        grid-template-columns: 1fr;
+    }
+    
+    .submit-btn {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .h1-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .table-header,
+    .table-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .header-cell,
+    .table-cell {
+        padding: 0.5rem;
+    }
+}
+
+.edit-btn{
+    padding: 0.4rem 0.8rem;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0.3rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    margin-right: 0.5rem;
+}
+
+.edit-btn:hover{
+    background-color: var(--secondary);
+    transform: translateY(-1px);
+}
+
+.delete-btn{
+    padding: 0.4rem 0.8rem;
+    border: none;
+    border-radius: 0.3rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.delete-btn:hover{
+    background-color: red;
+    transform: translateY(-1px);
+    color: white;
+}
+
+.save-btn{
+    padding: 0.4rem 0.8rem;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0.3rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    margin: 0.5rem;
+}
+
+.save-btn:hover{
+    background-color: var(--secondary);
+    transform: translateY(-1px);
+}
+
+.cancel-btn{
+    padding: 0.4rem 0.8rem;
+    border: none;
+    border-radius: 0.3rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.cancel-btn:hover{
+    background-color: red;
+    transform: translateY(-1px);
+    color: white;
+}
