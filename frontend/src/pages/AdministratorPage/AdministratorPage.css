@@ -63,7 +63,7 @@
     color: white;
 }
 
-.table {
+.tables {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 2rem;
@@ -79,6 +79,7 @@
     background-color: var(--primary);
     color: white;
     padding: 0.8rem 1rem;
+    width: 100%;
     font-weight: 600;
 }
 
@@ -88,8 +89,8 @@
 }
 
 .table-items {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
 }
 
 .table-row {

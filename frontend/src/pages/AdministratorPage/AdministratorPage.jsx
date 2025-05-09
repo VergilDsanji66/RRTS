@@ -246,8 +246,9 @@ const AdministratorPage = () => {
 
         {/* Data table */}
         {selectedOption && (
-          <div className="table">
-            <div className="table-header">
+          <div className="tables">
+            <div className="hold">
+              <div className="table-header">
               {tableHeaders[selectedOption].Header.map((header, index) => (
                 <div key={index} className="header-cell">{header}</div>
               ))}
@@ -302,6 +303,7 @@ const AdministratorPage = () => {
                   ))}
                 </div>
               ))}
+            </div>
             </div>
             {editingItem && (
               <div className="edit-controls">
