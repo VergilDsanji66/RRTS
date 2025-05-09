@@ -1,0 +1,10 @@
+pandas
+matplotlib
+seaborn
+scikit-learn
+numpy
+fastapi
+uvicorn
+pydantic
+firebase-admin
+python-jose[cryptography]

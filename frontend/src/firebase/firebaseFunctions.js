@@ -1,3 +1,4 @@
+// firebaseFunctions.js
 import { ref,get, set, runTransaction, update } from "firebase/database";
 import { database } from './firebase';
 
@@ -44,20 +45,13 @@ export const addComplaint = async (complaint) => {
 
 export const supervisorAssessment = async (complaintRefId, assessmentData) => {
   try {
-    // Convert complaintRefId to number if it's a string
-    const refNumber = typeof complaintRefId === 'string' 
-      ? parseInt(complaintRefId, 10) 
-      : complaintRefId;
-    
-    if (isNaN(refNumber)) {
+    // Check if complaintRefId is valid
+    if (!complaintRefId || typeof complaintRefId !== 'string') {
       throw new Error("Invalid complaint reference ID");
     }
 
-    const paddedRef = String(refNumber).padStart(3, '0');
-    const complaintId = `complaint-${paddedRef}`;
-    
     // 1. Get the original complaint data
-    const complaintRef = ref(database, `Complaints/${complaintId}`);
+    const complaintRef = ref(database, `Complaints/${complaintRefId}`);
     const complaintSnapshot = await get(complaintRef);
     
     if (!complaintSnapshot.exists()) {
@@ -89,22 +83,23 @@ export const supervisorAssessment = async (complaintRefId, assessmentData) => {
       resources: formattedResources,
       assessmentReport: assessmentData.assessmentReport,
       assessmentDate,
-      status: "assessed"
+      status: "assessed",
+      complaintRef: complaintRefId  // Store the original complaint reference
     };
 
-    // 4. Save to Assessments
-    const assessmentRef = ref(database, `Assessments/assessment-${paddedRef}`);
+    // 4. Save to Assessments using the same complaint reference ID
+    const assessmentRef = ref(database, `Assessments/${complaintRefId}`);
     await set(assessmentRef, assessment);
 
     // 5. Update status in Complaints dataset
     await update(complaintRef, {
       status: "assessed",
-      assessmentId: `assessment-${paddedRef}`
+      assessmentId: complaintRefId
     });
 
     return {
       success: true,
-      assessmentId: `assessment-${paddedRef}`
+      assessmentId: complaintRefId
     };
 
   } catch (error) {
@@ -112,4 +107,3 @@ export const supervisorAssessment = async (complaintRefId, assessmentData) => {
     throw error;
   }
 };
-

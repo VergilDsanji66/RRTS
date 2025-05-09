@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../componets/Navbar/Navbar';
-import './SupervisorPage.css';
 import { database } from '../../firebase/firebase';
-import { ref, onValue } from "firebase/database";
+import { ref, onValue, update } from "firebase/database";
 import { supervisorAssessment } from '../../firebase/firebaseFunctions';
+import './SupervisorPage.css';
 
 const SupervisorPage = () => {
   // State for complaints data
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Flattened arrays for machines and materials
+  // Resource options
   const machines = [
     'Asphalt Paver', 'Road Roller', 'Pothole Patching Machine', 
     'Jackhammer', 'Street Sweeper', 'Bucket Truck', 'Light Tower', 
@@ -51,6 +52,7 @@ const SupervisorPage = () => {
   const [assessmentReport, setAssessmentReport] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // Fetch today's complaints
   useEffect(() => {
@@ -59,7 +61,10 @@ const SupervisorPage = () => {
     const unsubscribe = onValue(complaintsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const complaintsArray = Object.values(data);
+        const complaintsArray = Object.entries(data).map(([key, value]) => ({
+          ...value,
+          ref: key // Include the Firebase key as ref
+        }));
         
         const today = new Date();
         const todayDate = `${String(today.getDate()).padStart(2, '0')}-${
@@ -83,6 +88,27 @@ const SupervisorPage = () => {
     return () => unsubscribe();
   }, []);
 
+  // Mark complaint as completed
+  const markAsCompleted = async (complaintRef) => {
+    if (!complaintRef) return;
+    
+    try {
+      setUpdatingStatus(true);
+      const complaintRefInDB = ref(database, `Complaints/${complaintRef}`);
+      await update(complaintRefInDB, { status: 'completed' });
+      
+      // Update local state
+      setComplaints(prev => prev.map(complaint => 
+        complaint.ref === complaintRef ? {...complaint, status: 'completed'} : complaint
+      ));
+    } catch (error) {
+      console.error('Error updating complaint status:', error);
+      setErrorMessage('Failed to update status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   // Handle priority checkbox changes
   const handlePriorityChange = (priority) => {
     setRepairPriority({
@@ -103,7 +129,7 @@ const SupervisorPage = () => {
     }));
   };
 
-  // Add resource to list (checks for existing items)
+  // Add resource to list
   const addResource = (resourceType) => {
     const resource = currentResource[resourceType];
     if (resource.type && resource.quantity > 0) {
@@ -113,7 +139,6 @@ const SupervisorPage = () => {
         );
 
         if (existingIndex >= 0) {
-          // Update quantity if resource already exists
           const updatedList = [...prev];
           updatedList[existingIndex] = {
             ...updatedList[existingIndex],
@@ -121,7 +146,6 @@ const SupervisorPage = () => {
           };
           return updatedList;
         } else {
-          // Add new resource if it doesn't exist
           return [
             ...prev,
             {
@@ -133,7 +157,6 @@ const SupervisorPage = () => {
         }
       });
 
-      // Reset the current input
       setCurrentResource(prev => ({
         ...prev,
         [resourceType]: { type: '', quantity: 0 }
@@ -148,59 +171,77 @@ const SupervisorPage = () => {
 
   // Submit assessment
   const handleSubmitAssessment = async () => {
-    if (!selectedComplaintRef) {
-      alert('Please select a complaint to assess');
-      return;
+  if (!selectedComplaintRef) {
+    setErrorMessage('Please select a valid complaint to assess');
+    return;
+  }
+  
+  // Find the full complaint data to verify it exists
+  const selectedComplaint = complaints.find(c => c.ref === selectedComplaintRef);
+  if (!selectedComplaint) {
+    setErrorMessage('Selected complaint not found');
+    return;
+  }
+
+  if (resourceList.length === 0) {
+    setErrorMessage('Please add at least one resource');
+    return;
+  }
+
+  setErrorMessage('');
+
+  const selectedPriority = Object.entries(repairPriority)
+    .find(([_, isChecked]) => isChecked)?.[0] || 'medium';
+
+  const groupedResources = resourceList.reduce((acc, resource) => {
+    if (!acc[resource.type]) {
+      acc[resource.type] = [];
     }
-    if (resourceList.length === 0) {
-      alert('Please add at least one resource');
-      return;
-    }
+    acc[resource.type].push({
+      name: resource.name,
+      quantity: resource.quantity
+    });
+    return acc;
+  }, {});
 
-    const selectedPriority = Object.entries(repairPriority)
-      .find(([_, isChecked]) => isChecked)?.[0] || 'medium';
-
-    // Group resources by type for the database
-    const groupedResources = resourceList.reduce((acc, resource) => {
-      if (!acc[resource.type]) {
-        acc[resource.type] = [];
-      }
-      acc[resource.type].push({
-        name: resource.name,
-        quantity: resource.quantity
-      });
-      return acc;
-    }, {});
-
-    const assessmentData = {
-      severityConfirmation: selectedSeverity,
-      localityType: selectedLocality,
-      repairPriority: selectedPriority,
-      resources: groupedResources,
-      assessmentReport
-    };
-
-    try {
-      setIsSubmitting(true);
-      await supervisorAssessment(selectedComplaintRef, assessmentData);
-      setSubmitSuccess(true);
-      // Reset form
-      setSelectedComplaintRef('');
-      setAssessmentReport('');
-      setResourceList([]);
-      setCurrentResource({
-        material: { type: '', quantity: 0 },
-        equipment: { type: '', quantity: 0 },
-        labour: { type: '', quantity: 0 }
-      });
-      setTimeout(() => setSubmitSuccess(false), 3000);
-    } catch (error) {
-      console.error('Assessment submission failed:', error);
-      alert('Failed to submit assessment');
-    } finally {
-      setIsSubmitting(false);
-    }
+  const assessmentData = {
+    severityConfirmation: selectedSeverity,
+    localityType: selectedLocality,
+    repairPriority: selectedPriority,
+    resources: groupedResources,
+    assessmentReport
   };
+
+  try {
+    setIsSubmitting(true);
+    // Pass the complaint reference ID directly
+    await supervisorAssessment(selectedComplaintRef, assessmentData);
+    
+    setSubmitSuccess(true);
+    
+    // Update local complaint status to 'assessed'
+    setComplaints(prev => prev.map(complaint => 
+      complaint.ref === selectedComplaintRef ? {...complaint, status: 'assessed'} : complaint
+    ));
+    
+    // Reset form
+    setSelectedComplaintRef('');
+    setAssessmentReport('');
+    setResourceList([]);
+    setCurrentResource({
+      material: { type: '', quantity: 0 },
+      equipment: { type: '', quantity: 0 },
+      labour: { type: '', quantity: 0 }
+    });
+    
+    setTimeout(() => setSubmitSuccess(false), 3000);
+  } catch (error) {
+    console.error('Assessment submission failed:', error);
+    setErrorMessage(error.message || 'Failed to submit assessment');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (loading) return <div className="loading">Loading complaints...</div>;
 
@@ -213,15 +254,32 @@ const SupervisorPage = () => {
           <button>Print Area Report</button>
         </div>
         
+        {errorMessage && (
+          <div className="error-message">
+            {errorMessage}
+          </div>
+        )}
+        
         <div className="today-report">
           {complaints.length > 0 ? (
             complaints.map((complaint) => (
-              <div key={complaint.id || Math.random()} className="report">
+              <div key={complaint.ref} className="report">
                 <div className="report-top">
                   <h3>{complaint.roadName || 'N/A'}, {complaint.issueType || 'N/A'}</h3>
-                  <span className={`status-badge ${complaint.status || 'pending'}`}>
-                    {complaint.status || 'Pending'}
-                  </span>
+                  <div className="status-container">
+                    <span className={`status-badge ${complaint.status || 'pending'}`}>
+                      {complaint.status || 'Pending'}
+                    </span>
+                    {complaint.status === 'assessed' && (
+                      <button 
+                        className="complete-btn"
+                        onClick={() => markAsCompleted(complaint.ref)}
+                        disabled={updatingStatus}
+                      >
+                        {updatingStatus ? 'Updating...' : 'Mark as Completed'}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="location">
                   <p>Ref # {complaint.ref || 'N/A'}</p>
