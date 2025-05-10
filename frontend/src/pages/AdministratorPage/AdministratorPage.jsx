@@ -24,16 +24,28 @@ const AdministratorPage = () => {
 
   const personnelRoles = [
     { value: 'RoadCrew', label: 'Road Crew' },
-    { value: 'DrainageSpecialists', label: 'Drainage Specialists' },
+    { value: 'DrainageSpecialists', label: 'Drainage Specialists' }, 
     { value: 'TrafficControllers', label: 'Traffic Controllers' }
   ];
 
-  const statusOptions = [
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
-    { value: 'maintenance', label: 'Maintenance' },
-    { value: 'on_leave', label: 'On Leave' }
-  ];
+  // Status options for different resource types
+  const statusOptions = {
+    personal: [
+      { value: 'active', label: 'Active' },
+      { value: 'inactive', label: 'Inactive' },
+      { value: 'on_leave', label: 'On Leave' }
+    ],
+    machines: [
+      { value: 'active', label: 'Active' },
+      { value: 'inactive', label: 'Inactive' },
+      { value: 'maintenance', label: 'Maintenance' }
+    ],
+    materials: [
+      { value: 'available', label: 'Available' },
+      { value: 'ordered', label: 'Ordered' },
+      { value: 'unavailable', label: 'Unavailable' }
+    ]
+  };
 
   // Table headers configuration
   const tableHeaders = {
@@ -46,8 +58,8 @@ const AdministratorPage = () => {
       accessors: ['id', 'type', 'status', 'lastMaintenance', 'assignedTo', 'actions']
     },
     materials: {
-      Header: ['Material', 'Quantity', 'Unit', 'Reorder Level', 'Last Delivery', 'Actions'],
-      accessors: ['material', 'quantity', 'unit', 'reorderLevel', 'lastDelivery', 'actions']
+      Header: ['Material', 'Quantity', 'Unit', 'Status', 'Last Delivery', 'Actions'],
+      accessors: ['material', 'quantity', 'unit', 'status', 'lastDelivery', 'actions']
     }
   };
 
@@ -57,9 +69,13 @@ const AdministratorPage = () => {
   const [formData, setFormData] = useState({
     personal: { name: '', role: '', status: '' },
     machines: { type: '', status: '', lastMaintenance: '', nextMaintenance: '' },
-    materials: { name: '', unit: '', quantity: '', reorderLevel: '' }
+    materials: { name: '', unit: '', quantity: '', status: '' }
   });
   const [editingItem, setEditingItem] = useState(null);
+  const [assignmentStatus, setAssignmentStatus] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [unassignStatus, setUnassignStatus] = useState('');
+  const [isUnassigning, setIsUnassigning] = useState(false);
 
   // Format date to DD-MM-YYYY
   const formatDate = (dateString) => {
@@ -80,14 +96,13 @@ const AdministratorPage = () => {
         const dataArray = data 
           ? Object.entries(data).map(([key, value]) => ({
               ...value,
-              firebaseKey: key // Store the Firebase key for updates/deletes
+              firebaseKey: key
             })) 
           : [];
         setData(dataArray);
       });
     }
   }, [selectedOption]);
-  
 
   // Handle form input changes
   const handleInputChange = (option, field, value) => {
@@ -142,7 +157,7 @@ const AdministratorPage = () => {
           material: formData.materials.name,
           quantity: parseFloat(formData.materials.quantity) || 0,
           unit: formData.materials.unit,
-          reorderLevel: parseFloat(formData.materials.reorderLevel) || 0,
+          status: formData.materials.status,
           lastDelivery: new Date().toISOString(),
           dateAdded: new Date().toISOString()
         };
@@ -186,6 +201,8 @@ const AdministratorPage = () => {
       } else if (selectedOption === 'machines') {
         updates['status'] = editingItem.status;
         updates['assignedTo'] = editingItem.assignedTo;
+      } else if (selectedOption === 'materials') {
+        updates['status'] = editingItem.status;
       }
 
       const itemRef = ref(database, `DataQuery/${selectedOption}/${editingItem.firebaseKey}`);
@@ -213,13 +230,123 @@ const AdministratorPage = () => {
     }
   };
 
+  // Handle resource assignment
+  const assignResources = async () => {
+    setIsAssigning(true);
+    setAssignmentStatus('Assigning resources...');
+    
+    try {
+      const response = await fetch('http://localhost:8000/assign-resources', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to assign resources');
+      }
+      
+      const result = await response.json();
+      setAssignmentStatus(`Resources assigned! ${result.processing} in progress, ${result.on_hold} on hold`);
+      
+      // Refresh data after assignment
+      const dataRef = ref(database, `DataQuery/${selectedOption}`);
+      onValue(dataRef, (snapshot) => {
+        const data = snapshot.val();
+        const dataArray = data 
+          ? Object.entries(data).map(([key, value]) => ({
+              ...value,
+              firebaseKey: key
+            })) 
+          : [];
+        setData(dataArray);
+      });
+      
+    } catch (error) {
+      console.error('Error assigning resources:', error);
+      setAssignmentStatus(`Error: ${error.message}`);
+    } finally {
+      setIsAssigning(false);
+      setTimeout(() => setAssignmentStatus(''), 5000);
+    }
+  };
+
+  // Handle unassigning completed resources
+  const unassignCompleted = async () => {
+    setIsUnassigning(true);
+    setUnassignStatus('Unassigning completed resources...');
+    
+    try {
+      const response = await fetch('http://localhost:8000/unassign-completed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to unassign resources');
+      }
+      
+      const result = await response.json();
+      setUnassignStatus(result.message || 'Completed resources unassigned successfully!');
+      
+      // Refresh data
+      const dataRef = ref(database, `DataQuery/${selectedOption}`);
+      onValue(dataRef, (snapshot) => {
+        const data = snapshot.val();
+        const dataArray = data 
+          ? Object.entries(data).map(([key, value]) => ({
+              ...value,
+              firebaseKey: key
+            })) 
+          : [];
+        setData(dataArray);
+      });
+      
+    } catch (error) {
+      console.error('Error unassigning resources:', error);
+      setUnassignStatus(`Error: ${error.message}`);
+    } finally {
+      setIsUnassigning(false);
+      setTimeout(() => setUnassignStatus(''), 5000);
+    }
+  };
+
   return (
     <div>
       <Navbar id={1} />
       <div className="admin-dashboard">
         <div className="h1-top">
           <h2>Resource Management</h2>
-          <button>Refresh Data</button>
+          <div className="button-group">
+            <button onClick={() => window.location.reload()}>Refresh Data</button>
+            <button 
+              onClick={assignResources}
+              disabled={isAssigning}
+              className={isAssigning ? 'assigning' : ''}
+            >
+              {isAssigning ? 'Assigning...' : 'Assign Resources'}
+            </button>
+            <button 
+              onClick={unassignCompleted}
+              disabled={isUnassigning}
+              className={`unassign-btn ${isUnassigning ? 'unassigning' : ''}`}
+            >
+              {isUnassigning ? 'Unassigning...' : 'Unassign Completed'}
+            </button>
+          </div>
+          {assignmentStatus && (
+            <div className={`assignment-status ${assignmentStatus.includes('Error') ? 'error' : 'success'}`}>
+              {assignmentStatus}
+            </div>
+          )}
+          {unassignStatus && (
+            <div className={`unassign-status ${unassignStatus.includes('Error') ? 'error' : 'success'}`}>
+              {unassignStatus}
+            </div>
+          )}
         </div>
         
         {/* Options selector */}
@@ -249,61 +376,61 @@ const AdministratorPage = () => {
           <div className="tables">
             <div className="hold">
               <div className="table-header">
-              {tableHeaders[selectedOption].Header.map((header, index) => (
-                <div key={index} className="header-cell">{header}</div>
-              ))}
-            </div>
-            <div className="table-items">
-              {data.map((item, index) => (
-                <div key={index} className="table-row">
-                  {tableHeaders[selectedOption].accessors.map((accessor, i) => (
-                    <div key={i} className="table-cell">
-                      {accessor === 'actions' ? (
-                        <div className="action-buttons">
-                          <button 
-                            className="edit-btn"
-                            onClick={() => handleEdit(item)}
+                {tableHeaders[selectedOption].Header.map((header, index) => (
+                  <div key={index} className="header-cell">{header}</div>
+                ))}
+              </div>
+              <div className="table-items">
+                {data.map((item, index) => (
+                  <div key={index} className="table-row">
+                    {tableHeaders[selectedOption].accessors.map((accessor, i) => (
+                      <div key={i} className="table-cell">
+                        {accessor === 'actions' ? (
+                          <div className="action-buttons">
+                            <button 
+                              className="edit-btn"
+                              onClick={() => handleEdit(item)}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              className="delete-btn"
+                              onClick={() => handleDelete(item.firebaseKey)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : accessor === 'lastMaintenance' || accessor === 'nextMaintenance' || accessor === 'lastDelivery' ? (
+                          formatDate(item[accessor])
+                        ) : editingItem?.firebaseKey === item.firebaseKey && 
+                          (accessor === 'role' || accessor === 'status' || accessor === 'assignedTo') ? (
+                          <select
+                            value={editingItem[accessor]}
+                            onChange={(e) => setEditingItem({
+                              ...editingItem,
+                              [accessor]: e.target.value
+                            })}
                           >
-                            Edit
-                          </button>
-                          <button 
-                            className="delete-btn"
-                            onClick={() => handleDelete(item.firebaseKey)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ) : accessor === 'lastMaintenance' || accessor === 'nextMaintenance' || accessor === 'lastDelivery' ? (
-                        formatDate(item[accessor])
-                      ) : editingItem?.firebaseKey === item.firebaseKey && 
-                        (accessor === 'role' || accessor === 'status' || accessor === 'assignedTo') ? (
-                        <select
-                          value={editingItem[accessor]}
-                          onChange={(e) => setEditingItem({
-                            ...editingItem,
-                            [accessor]: e.target.value
-                          })}
-                        >
-                          {accessor === 'role' ? (
-                            personnelRoles.map((role, idx) => (
-                              <option key={idx} value={role.value}>{role.label}</option>
-                            ))
-                          ) : accessor === 'status' ? (
-                            statusOptions.map((status, idx) => (
-                              <option key={idx} value={status.value}>{status.label}</option>
-                            ))
-                          ) : (
-                            <option value="Unassigned">Unassigned</option>
-                          )}
-                        </select>
-                      ) : (
-                        item[accessor] || '-'
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+                            {accessor === 'role' ? (
+                              personnelRoles.map((role, idx) => (
+                                <option key={idx} value={role.value}>{role.label}</option>
+                              ))
+                            ) : accessor === 'status' ? (
+                              statusOptions[selectedOption].map((status, idx) => (
+                                <option key={idx} value={status.value}>{status.label}</option>
+                              ))
+                            ) : (
+                              <option value="Unassigned">Unassigned</option>
+                            )}
+                          </select>
+                        ) : (
+                          item[accessor] || '-'
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
             {editingItem && (
               <div className="edit-controls">
@@ -364,7 +491,7 @@ const AdministratorPage = () => {
                     required
                   >
                     <option value="">Select Status</option>
-                    {statusOptions.map((status, index) => (
+                    {statusOptions.personal.map((status, index) => (
                       <option key={index} value={status.value}>{status.label}</option>
                     ))}
                   </select>
@@ -402,7 +529,7 @@ const AdministratorPage = () => {
                     required
                   >
                     <option value="">Select Status</option>
-                    {statusOptions.map((status, index) => (
+                    {statusOptions.machines.map((status, index) => (
                       <option key={index} value={status.value}>{status.label}</option>
                     ))}
                   </select>
@@ -475,16 +602,17 @@ const AdministratorPage = () => {
                 </div>
                 
                 <div className="form-group">
-                  <h3>Reorder Level</h3>
-                  <input 
-                    type="number" 
-                    placeholder="Enter reorder level"
-                    value={formData.materials.reorderLevel}
-                    onChange={(e) => handleInputChange('materials', 'reorderLevel', e.target.value)}
+                  <h3>Status</h3>
+                  <select
+                    value={formData.materials.status}
+                    onChange={(e) => handleInputChange('materials', 'status', e.target.value)}
                     required
-                    min="0"
-                    step="0.01"
-                  />
+                  >
+                    <option value="">Select Status</option>
+                    {statusOptions.materials.map((status, index) => (
+                      <option key={index} value={status.value}>{status.label}</option>
+                    ))}
+                  </select>
                 </div>
                 
                 <button type="submit" className="submit-btn">Add Material</button>

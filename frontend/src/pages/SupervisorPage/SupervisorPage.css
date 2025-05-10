@@ -37,6 +37,10 @@
     background-color: var(--secondary);
 }
 
+.tab-button{
+    margin-right: 0.5em ;
+}
+
 .today-report{
     display: flex;
     flex-direction: column;
