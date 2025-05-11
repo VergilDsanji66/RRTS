@@ -43,7 +43,8 @@ export const addComplaint = async (complaint) => {
     }
 };
 
-export const supervisorAssessment = async (complaintRefId, assessmentData) => {
+export const 
+supervisorAssessment = async (complaintRefId, assessmentData) => {
   try {
     // Check if complaintRefId is valid
     if (!complaintRefId || typeof complaintRefId !== 'string') {

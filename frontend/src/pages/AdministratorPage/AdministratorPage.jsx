@@ -1,25 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../componets/Navbar/Navbar';
-import { ref, push, set, onValue, update, remove } from 'firebase/database';
+import { ref, push, set, onValue, update, remove, get } from 'firebase/database';
 import { database } from '../../firebase/firebase';
 import './AdministratorPage.css';
 
 const AdministratorPage = () => {
-  // Dropdown options
+  // Resource options
   const machineTypes = [
     'Asphalt Paver', 'Road Roller', 'Pothole Patching Machine', 
-    'Jackhammer', 'Street Sweeper', 'Bucket Truck', 'Light Tower', 
-    'Drill', 'Testing Equipment', 'Excavator', 'Backhoe', 
-    'Drain Jet Truck', 'CCTV Inspection Crawler', 'Vactor Truck',
-    'Pressure Washer', 'Sandblaster', 'Paint Sprayer'
+    'Jackhammer', 'Street Sweeper', 'Bucket Truck', 'Light Tower'
   ];
 
   const materialNames = [
     'Asphalt', 'Concrete', 'Gravel', 'Tack Coat', 'Cold Patch',
-    'LED Bulbs', 'Wiring', 'Poles', 'Conduit', 'Fuses', 'Photocells',
-    'PVC Pipes', 'Catch Basins', 'Grates', 'Geotextile Fabric', 
-    'Gravel', 'Concrete', 'Paint', 'Solvents', 'Anti-Graffiti Coating', 
-    'Primer', 'Brushes/Rollers'
+    'LED Bulbs', 'Wiring', 'Poles', 'Conduit'
   ];
 
   const personnelRoles = [
@@ -28,7 +22,7 @@ const AdministratorPage = () => {
     { value: 'TrafficControllers', label: 'Traffic Controllers' }
   ];
 
-  // Status options for different resource types
+  // Status options
   const statusOptions = {
     personal: [
       { value: 'active', label: 'Active' },
@@ -58,24 +52,32 @@ const AdministratorPage = () => {
       accessors: ['id', 'type', 'status', 'lastMaintenance', 'assignedTo', 'actions']
     },
     materials: {
-      Header: ['Material', 'Quantity', 'Unit', 'Status', 'Last Delivery', 'Actions'],
-      accessors: ['material', 'quantity', 'unit', 'status', 'lastDelivery', 'actions']
+      Header: ['ID', 'Material', 'Quantity', 'Unit', 'Status', 'Actions'],
+      accessors: ['id', 'material', 'quantity', 'unit', 'status', 'actions']
     }
   };
 
-  // State management
+  // State
   const [selectedOption, setSelectedOption] = useState('personal');
   const [data, setData] = useState([]);
+  const [assignedResources, setAssignedResources] = useState({});
+  const [assessments, setAssessments] = useState([]);
   const [formData, setFormData] = useState({
     personal: { name: '', role: '', status: '' },
-    machines: { type: '', status: '', lastMaintenance: '', nextMaintenance: '' },
+    machines: { type: '', status: '', lastMaintenance: '' },
     materials: { name: '', unit: '', quantity: '', status: '' }
   });
   const [editingItem, setEditingItem] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [assignmentStatus, setAssignmentStatus] = useState('');
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [unassignStatus, setUnassignStatus] = useState('');
-  const [isUnassigning, setIsUnassigning] = useState(false);
+
+  // Locality priority
+  const localityPriority = {
+    'commercial': 1,
+    'industrial': 2,
+    'mixed': 3,
+    'residential': 4
+  };
 
   // Format date to DD-MM-YYYY
   const formatDate = (dateString) => {
@@ -87,22 +89,121 @@ const AdministratorPage = () => {
     return `${day}-${month}-${year}`;
   };
 
-  // Fetch data from Firebase
+  // Fetch all necessary data
   useEffect(() => {
-    if (selectedOption) {
-      const dataRef = ref(database, `DataQuery/${selectedOption}`);
-      onValue(dataRef, (snapshot) => {
-        const data = snapshot.val();
-        const dataArray = data 
-          ? Object.entries(data).map(([key, value]) => ({
-              ...value,
-              firebaseKey: key
-            })) 
-          : [];
-        setData(dataArray);
-      });
-    }
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const dataRef = ref(database, `DataQuery/${selectedOption}`);
+        const assignedRef = ref(database, 'Assigned');
+        const assessmentsRef = ref(database, 'Assessments');
+
+        const unsubscribeData = onValue(dataRef, (snapshot) => {
+          const data = snapshot.val() || {};
+          setData(Object.entries(data).map(([key, value]) => ({ ...value, firebaseKey: key })));
+        });
+
+        const unsubscribeAssigned = onValue(assignedRef, (snapshot) => {
+          setAssignedResources(snapshot.val() || {});
+        });
+
+        const unsubscribeAssessments = onValue(assessmentsRef, (snapshot) => {
+          const assessmentsData = snapshot.val() || {};
+          const assessmentsArray = Object.entries(assessmentsData).map(([key, value]) => ({
+            ...value,
+            id: key
+          }));
+          setAssessments(assessmentsArray);
+        });
+
+        return () => {
+          unsubscribeData();
+          unsubscribeAssigned();
+          unsubscribeAssessments();
+        };
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, [selectedOption]);
+
+  // Auto-unassign completed resources
+  useEffect(() => {
+    const unassignCompleted = async () => {
+      try {
+        const updates = {};
+        let anyUnassigned = false;
+
+        // Get fresh snapshots
+        const [assignedSnapshot, assessmentsSnapshot, machinesSnapshot, personnelSnapshot] = await Promise.all([
+          get(ref(database, 'Assigned')),
+          get(ref(database, 'Assessments')),
+          get(ref(database, 'DataQuery/machines')),
+          get(ref(database, 'DataQuery/personal'))
+        ]);
+
+        const assignedData = assignedSnapshot.val() || {};
+        const assessmentsData = assessmentsSnapshot.val() || {};
+        const machinesData = machinesSnapshot.val() || {};
+        const personnelData = personnelSnapshot.val() || {};
+
+        // Unassign completed assessments
+        for (const [assignmentName, assignment] of Object.entries(assignedData)) {
+          const assessment = assessmentsData[assignment.assessmentId];
+          
+          if (assessment && assessment.status === 'completed') {
+            updates[`Assigned/${assignmentName}`] = null;
+            
+            // Unassign personnel
+            if (assignment.labour) {
+              assignment.labour.forEach(id => {
+                const personEntry = Object.entries(personnelData).find(([_, p]) => p.id === id);
+                if (personEntry) {
+                  const [firebaseKey] = personEntry;
+                  updates[`DataQuery/personal/${firebaseKey}/assignedTo`] = "";
+                }
+              });
+            }
+            
+            // Unassign equipment
+            if (assignment.equipment) {
+              assignment.equipment.forEach(id => {
+                const machineEntry = Object.entries(machinesData).find(([_, m]) => m.id === id);
+                if (machineEntry) {
+                  const [firebaseKey] = machineEntry;
+                  updates[`DataQuery/machines/${firebaseKey}/assignedTo`] = "";
+                }
+              });
+            }
+            
+            anyUnassigned = true;
+          }
+        }
+
+        // Clean up orphaned assignments
+        Object.entries(machinesData).forEach(([firebaseKey, machine]) => {
+          if (machine.assignedTo && !assignedData[machine.assignedTo]) {
+            updates[`DataQuery/machines/${firebaseKey}/assignedTo`] = "";
+            anyUnassigned = true;
+          }
+        });
+
+        if (anyUnassigned) {
+          await update(ref(database), updates);
+          setAssignmentStatus('Completed resources unassigned automatically');
+          setTimeout(() => setAssignmentStatus(''), 3000);
+        }
+      } catch (error) {
+        console.error('Error auto-unassigning resources:', error);
+      }
+    };
+
+    unassignCompleted();
+  }, [assignedResources, assessments]);
 
   // Handle form input changes
   const handleInputChange = (option, field, value) => {
@@ -115,203 +216,313 @@ const AdministratorPage = () => {
     }));
   };
 
-  // Generate unique IDs
-  const generateId = (prefix) => {
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    return `${prefix}-${randomNum}`;
-  };
+  // Generate ID
+  const generateId = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  // Handle form submission
+  // Add new resource
   const handleSubmit = async (e, option) => {
     e.preventDefault();
-    
     try {
-      let newItem;
       const newId = generateId(
         option === 'personal' ? 'EMP' : 
         option === 'machines' ? 'MCH' : 'MAT'
       );
 
-      if (option === 'personal') {
-        newItem = {
-          id: newId,
-          name: formData.personal.name,
-          role: formData.personal.role,
-          status: formData.personal.status,
-          assignedTo: 'Unassigned',
-          dateAdded: new Date().toISOString()
-        };
-      } else if (option === 'machines') {
-        newItem = {
-          id: newId,
-          type: formData.machines.type,
-          status: formData.machines.status,
-          lastMaintenance: formData.machines.lastMaintenance || new Date().toISOString(),
-          nextMaintenance: formData.machines.nextMaintenance || '',
-          assignedTo: 'Unassigned',
-          dateAdded: new Date().toISOString()
-        };
-      } else {
-        newItem = {
-          id: newId,
-          material: formData.materials.name,
-          quantity: parseFloat(formData.materials.quantity) || 0,
-          unit: formData.materials.unit,
-          status: formData.materials.status,
-          lastDelivery: new Date().toISOString(),
-          dateAdded: new Date().toISOString()
-        };
+      const newItem = {
+        id: newId,
+        ...formData[option],
+        assignedTo: "",
+        dateAdded: new Date().toISOString()
+      };
+
+      if (option === 'materials') {
+        newItem.material = formData.materials.name;
+        delete newItem.name;
       }
 
-      // Push to Firebase
       const newItemRef = push(ref(database, `DataQuery/${option}`));
       await set(newItemRef, newItem);
 
-      // Reset form
       setFormData(prev => ({
         ...prev,
-        [option]: Object.fromEntries(
-          Object.keys(prev[option]).map(key => [key, ''])
-        )
+        [option]: Object.fromEntries(Object.keys(prev[option]).map(key => [key, '']))
       }));
 
-      alert(`${option === 'personal' ? 'Employee' : 
-              option === 'machines' ? 'Machine' : 'Material'} added successfully!`);
+      alert(`${option.charAt(0).toUpperCase() + option.slice(1)} added successfully!`);
     } catch (error) {
       console.error('Error adding data:', error);
       alert('Failed to add data');
     }
   };
 
-  // Handle edit action
+  // Edit resource
   const handleEdit = (item) => {
     setEditingItem(item);
   };
 
-  // Handle save edit
+  // Save edited resource
   const handleSaveEdit = async () => {
     if (!editingItem) return;
 
     try {
       const updates = {};
       if (selectedOption === 'personal') {
+        updates['name'] = editingItem.name;
         updates['role'] = editingItem.role;
         updates['status'] = editingItem.status;
         updates['assignedTo'] = editingItem.assignedTo;
       } else if (selectedOption === 'machines') {
+        updates['type'] = editingItem.type;
         updates['status'] = editingItem.status;
+        updates['lastMaintenance'] = editingItem.lastMaintenance;
         updates['assignedTo'] = editingItem.assignedTo;
       } else if (selectedOption === 'materials') {
+        updates['material'] = editingItem.material;
+        updates['quantity'] = editingItem.quantity;
+        updates['unit'] = editingItem.unit;
         updates['status'] = editingItem.status;
       }
 
-      const itemRef = ref(database, `DataQuery/${selectedOption}/${editingItem.firebaseKey}`);
-      await update(itemRef, updates);
-      
+      await update(ref(database, `DataQuery/${selectedOption}/${editingItem.firebaseKey}`), updates);
       setEditingItem(null);
-      alert('Item updated successfully!');
+      alert('Changes saved successfully!');
     } catch (error) {
       console.error('Error updating item:', error);
       alert('Failed to update item');
     }
   };
 
-  // Handle delete action
+  // Delete resource
   const handleDelete = async (firebaseKey) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
+    if (window.confirm('Are you sure you want to delete this resource?')) {
       try {
-        const itemRef = ref(database, `DataQuery/${selectedOption}/${firebaseKey}`);
-        await remove(itemRef);
-        alert('Item deleted successfully!');
+        await remove(ref(database, `DataQuery/${selectedOption}/${firebaseKey}`));
+        alert('Resource deleted successfully');
       } catch (error) {
-        console.error('Error deleting item:', error);
-        alert('Failed to delete item');
+        console.error('Error deleting resource:', error);
+        alert('Failed to delete resource');
       }
     }
   };
 
-  // Handle resource assignment
-  const assignResources = async () => {
-    setIsAssigning(true);
+  // Auto-assign resources based on priority
+  const autoAssignResources = async () => {
+    setIsLoading(true);
     setAssignmentStatus('Assigning resources...');
     
     try {
-      const response = await fetch('http://localhost:8000/assign-resources', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to assign resources');
+      // Get all assessments that need resources
+      const pendingAssessments = assessments.filter(
+        a => (a.status === 'assessed' || a.status === 'on_hold') && 
+             a.resources && 
+             (a.resources.labour || a.resources.equipment || a.resources.materials)
+      );
+
+      if (pendingAssessments.length === 0) {
+        setAssignmentStatus('No assessments need resources or assessments are missing resource requirements');
+        return;
       }
-      
-      const result = await response.json();
-      setAssignmentStatus(`Resources assigned! ${result.processing} in progress, ${result.on_hold} on hold`);
-      
-      // Refresh data after assignment
-      const dataRef = ref(database, `DataQuery/${selectedOption}`);
-      onValue(dataRef, (snapshot) => {
-        const data = snapshot.val();
-        const dataArray = data 
-          ? Object.entries(data).map(([key, value]) => ({
-              ...value,
-              firebaseKey: key
-            })) 
-          : [];
-        setData(dataArray);
-      });
-      
+
+      // Get current data snapshots
+      const [machinesSnapshot, personnelSnapshot, materialsSnapshot] = await Promise.all([
+        get(ref(database, 'DataQuery/machines')),
+        get(ref(database, 'DataQuery/personal')),
+        get(ref(database, 'DataQuery/materials'))
+      ]);
+
+      const machinesData = machinesSnapshot.val() || {};
+      const personnelData = personnelSnapshot.val() || {};
+      const materialsData = materialsSnapshot.val() || {};
+
+      // Check resource availability for each
+      const assessmentsWithAvailability = await Promise.all(
+        pendingAssessments.map(assessment => 
+          checkResourceAvailability(assessment, machinesData, personnelData, materialsData)
+        )
+      );
+
+      // Sort by locality priority (commercial first)
+      const prioritizedAssessments = assessmentsWithAvailability.sort(
+        (a, b) => (a.localityPriority || 4) - (b.localityPriority || 4)
+      );
+
+      const updates = {};
+      let anyAssigned = false;
+
+      for (const assessment of prioritizedAssessments) {
+        const { id, availableResources, resources, roadName } = assessment;
+        const assignmentName = roadName || `job-${id}`;
+
+        // Check if we have all required resources
+        const hasAllEquipment = !resources?.equipment || 
+          (availableResources.equipment.length >= Object.values(resources.equipment).reduce((a, b) => a + b, 0));
+        
+        const hasAllLabour = !resources?.labour || 
+          (availableResources.labour.length >= Object.values(resources.labour).reduce((a, b) => a + b, 0));
+        
+        const hasAllMaterials = !resources?.materials || 
+          (availableResources.materials.length === Object.keys(resources.materials).length);
+
+        if (hasAllEquipment && hasAllLabour && hasAllMaterials) {
+          // Create assignment
+          updates[`Assigned/${assignmentName}`] = {
+            ...availableResources,
+            assessmentId: id,
+            status: 'active',
+            timestamp: new Date().toISOString(),
+            localityType: assessment.localityType
+          };
+
+          // Mark equipment as assigned
+          availableResources.equipment?.forEach(id => {
+            const machineEntry = Object.entries(machinesData).find(([_, m]) => m.id === id);
+            if (machineEntry) {
+              const [firebaseKey] = machineEntry;
+              updates[`DataQuery/machines/${firebaseKey}/assignedTo`] = assignmentName;
+            }
+          });
+
+          // Mark personnel as assigned
+          availableResources.labour?.forEach(id => {
+            const personEntry = Object.entries(personnelData).find(([_, p]) => p.id === id);
+            if (personEntry) {
+              const [firebaseKey] = personEntry;
+              updates[`DataQuery/personal/${firebaseKey}/assignedTo`] = assignmentName;
+            }
+          });
+
+          // Update material quantities
+          availableResources.materials?.forEach(({ material, quantity, firebaseKey }) => {
+            if (firebaseKey && materialsData[firebaseKey]) {
+              updates[`DataQuery/materials/${firebaseKey}/quantity`] = materialsData[firebaseKey].quantity - quantity;
+              if (updates[`DataQuery/materials/${firebaseKey}/quantity`] <= 0) {
+                updates[`DataQuery/materials/${firebaseKey}/status`] = 'unavailable';
+              }
+            }
+          });
+
+          // Update assessment status
+          updates[`Assessments/${id}/status`] = 'in_progress';
+          anyAssigned = true;
+        } else {
+          // Not enough resources, mark as on hold
+          updates[`Assessments/${id}/status`] = 'on_hold';
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await update(ref(database), updates);
+      }
+
+      if (anyAssigned) {
+        setAssignmentStatus('Resources assigned based on priority!');
+      } else {
+        setAssignmentStatus('No assessments could be assigned - insufficient resources');
+      }
     } catch (error) {
-      console.error('Error assigning resources:', error);
+      console.error('Assignment error:', error);
       setAssignmentStatus(`Error: ${error.message}`);
     } finally {
-      setIsAssigning(false);
+      setIsLoading(false);
       setTimeout(() => setAssignmentStatus(''), 5000);
     }
   };
 
-  // Handle unassigning completed resources
-  const unassignCompleted = async () => {
-    setIsUnassigning(true);
-    setUnassignStatus('Unassigning completed resources...');
-    
-    try {
-      const response = await fetch('http://localhost:8000/unassign-completed', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to unassign resources');
+  // Check resource availability with fresh data
+  const checkResourceAvailability = async (assessment, machinesData, personnelData, materialsData) => {
+    const { resources, localityType } = assessment;
+    const availableResources = {
+      equipment: [],
+      labour: [],
+      materials: []
+    };
+
+    // Check equipment
+    if (resources?.equipment) {
+      for (const [type, needed] of Object.entries(resources.equipment)) {
+        const available = Object.values(machinesData).filter(
+          machine => machine.type === type && 
+                    machine.status === 'active' && 
+                    !machine.assignedTo
+        ).slice(0, needed);
+        
+        availableResources.equipment.push(...available.map(m => m.id));
       }
-      
-      const result = await response.json();
-      setUnassignStatus(result.message || 'Completed resources unassigned successfully!');
-      
-      // Refresh data
-      const dataRef = ref(database, `DataQuery/${selectedOption}`);
-      onValue(dataRef, (snapshot) => {
-        const data = snapshot.val();
-        const dataArray = data 
-          ? Object.entries(data).map(([key, value]) => ({
-              ...value,
-              firebaseKey: key
-            })) 
-          : [];
-        setData(dataArray);
-      });
-      
-    } catch (error) {
-      console.error('Error unassigning resources:', error);
-      setUnassignStatus(`Error: ${error.message}`);
-    } finally {
-      setIsUnassigning(false);
-      setTimeout(() => setUnassignStatus(''), 5000);
     }
+
+    // Check labour
+    if (resources?.labour) {
+      for (const [role, needed] of Object.entries(resources.labour)) {
+        const available = Object.values(personnelData).filter(
+          person => person.role === role && 
+                   person.status === 'active' && 
+                   !person.assignedTo
+        ).slice(0, needed);
+        
+        availableResources.labour.push(...available.map(p => p.id));
+      }
+    }
+
+    // Check materials
+    if (resources?.materials) {
+      for (const [material, needed] of Object.entries(resources.materials)) {
+        const available = Object.values(materialsData).find(
+          m => m.material === material && 
+               m.status === 'available' && 
+               m.quantity >= needed
+        );
+        
+        if (available) {
+          availableResources.materials.push({
+            material,
+            quantity: needed,
+            firebaseKey: Object.keys(materialsData).find(key => materialsData[key].material === material)
+          });
+        }
+      }
+    }
+
+    return {
+      ...assessment,
+      availableResources,
+      localityPriority: localityPriority[localityType?.toLowerCase()] || 4
+    };
+  };
+
+  // Render status badge
+  const renderStatusBadge = (status) => {
+    const statusMap = {
+      'completed': { color: 'green', text: 'Completed' },
+      'in_progress': { color: 'blue', text: 'In Progress' },
+      'on_hold': { color: 'yellow', text: 'On Hold' },
+      'assessed': { color: 'gray', text: 'Assessed' }
+    };
+
+    const statusInfo = statusMap[status] || { color: 'gray', text: status };
+
+    return (
+      <span className={`status-badge ${statusInfo.color}`}>
+        {statusInfo.text}
+      </span>
+    );
+  };
+
+  // Render locality badge
+  const renderLocalityBadge = (localityType) => {
+    const localityMap = {
+      'commercial': { color: 'purple', text: 'Commercial' },
+      'industrial': { color: 'orange', text: 'Industrial' },
+      'mixed': { color: 'teal', text: 'Mixed' },
+      'residential': { color: 'blue', text: 'Residential' }
+    };
+
+    const localityInfo = localityMap[localityType?.toLowerCase()] || { color: 'gray', text: localityType || 'Unknown' };
+
+    return (
+      <span className={`locality-badge ${localityInfo.color}`}>
+        {localityInfo.text}
+      </span>
+    );
   };
 
   return (
@@ -323,28 +534,16 @@ const AdministratorPage = () => {
           <div className="button-group">
             <button onClick={() => window.location.reload()}>Refresh Data</button>
             <button 
-              onClick={assignResources}
-              disabled={isAssigning}
-              className={isAssigning ? 'assigning' : ''}
+              onClick={autoAssignResources}
+              disabled={isLoading}
+              className={isLoading ? 'assigning' : ''}
             >
-              {isAssigning ? 'Assigning...' : 'Assign Resources'}
-            </button>
-            <button 
-              onClick={unassignCompleted}
-              disabled={isUnassigning}
-              className={`unassign-btn ${isUnassigning ? 'unassigning' : ''}`}
-            >
-              {isUnassigning ? 'Unassigning...' : 'Unassign Completed'}
+              {isLoading ? 'Assigning...' : 'Auto Assign Resources'}
             </button>
           </div>
           {assignmentStatus && (
             <div className={`assignment-status ${assignmentStatus.includes('Error') ? 'error' : 'success'}`}>
               {assignmentStatus}
-            </div>
-          )}
-          {unassignStatus && (
-            <div className={`unassign-status ${unassignStatus.includes('Error') ? 'error' : 'success'}`}>
-              {unassignStatus}
             </div>
           )}
         </div>
@@ -355,13 +554,13 @@ const AdministratorPage = () => {
             className={`option ${selectedOption === 'personal' ? 'active' : ''}`}
             onClick={() => setSelectedOption('personal')}
           >
-            Personal
+            Personnel
           </p>
           <p 
             className={`option ${selectedOption === 'machines' ? 'active' : ''}`}
             onClick={() => setSelectedOption('machines')}
           >
-            Machines
+            Equipment
           </p>
           <p 
             className={`option ${selectedOption === 'materials' ? 'active' : ''}`}
@@ -369,6 +568,67 @@ const AdministratorPage = () => {
           >
             Materials
           </p>
+        </div>
+
+        {/* Current Assignments */}
+        <div className="current-assignments">
+          <h2>Current Assignments</h2>
+          {Object.keys(assignedResources).length === 0 ? (
+            <p className="no-assignments">No active assignments</p>
+          ) : (
+            <div className="assignment-grid">
+              {Object.entries(assignedResources).map(([roadName, assignment]) => {
+                const assessment = assessments.find(a => a.id === assignment.assessmentId);
+                return (
+                  <div key={roadName} className="assignment-card">
+                    <div className="assignment-header">
+                      <h3>{roadName}</h3>
+                      {assignment.status && renderStatusBadge(assignment.status)}
+                    </div>
+                    {assessment && (
+                      <div className="assignment-priority">
+                        <span>Priority: </span>
+                        {renderLocalityBadge(assessment.localityType)}
+                      </div>
+                    )}
+                    <div className="assignment-resources">
+                      <h4>Assigned Resources:</h4>
+                      {assignment.labour?.length > 0 && (
+                        <div className="resource-group">
+                          <strong>Personnel:</strong>
+                          <ul>
+                            {assignment.labour.map(id => (
+                              <li key={id}>{id}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {assignment.equipment?.length > 0 && (
+                        <div className="resource-group">
+                          <strong>Equipment:</strong>
+                          <ul>
+                            {assignment.equipment.map(id => (
+                              <li key={id}>{id}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {assignment.materials?.length > 0 && (
+                        <div className="resource-group">
+                          <strong>Materials:</strong>
+                          <ul>
+                            {assignment.materials.map((m, i) => (
+                              <li key={i}>{m.material} ({m.quantity})</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Data table */}
@@ -400,30 +660,53 @@ const AdministratorPage = () => {
                               Remove
                             </button>
                           </div>
-                        ) : accessor === 'lastMaintenance' || accessor === 'nextMaintenance' || accessor === 'lastDelivery' ? (
+                        ) : accessor === 'lastMaintenance' ? (
                           formatDate(item[accessor])
-                        ) : editingItem?.firebaseKey === item.firebaseKey && 
-                          (accessor === 'role' || accessor === 'status' || accessor === 'assignedTo') ? (
-                          <select
-                            value={editingItem[accessor]}
-                            onChange={(e) => setEditingItem({
-                              ...editingItem,
-                              [accessor]: e.target.value
-                            })}
-                          >
-                            {accessor === 'role' ? (
-                              personnelRoles.map((role, idx) => (
-                                <option key={idx} value={role.value}>{role.label}</option>
-                              ))
-                            ) : accessor === 'status' ? (
-                              statusOptions[selectedOption].map((status, idx) => (
-                                <option key={idx} value={status.value}>{status.label}</option>
-                              ))
-                            ) : (
-                              <option value="Unassigned">Unassigned</option>
-                            )}
-                          </select>
+                        ) : editingItem?.firebaseKey === item.firebaseKey ? (
+                          accessor === 'status' ? (
+                            <select
+                              className="edit-dropdown"
+                              value={editingItem.status}
+                              onChange={(e) => setEditingItem({
+                                ...editingItem,
+                                status: e.target.value
+                              })}
+                            >
+                              {statusOptions[selectedOption].map(status => (
+                                <option key={status.value} value={status.value}>
+                                  {status.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : accessor === 'role' ? (
+                            <select
+                              className="edit-dropdown"
+                              value={editingItem.role}
+                              onChange={(e) => setEditingItem({
+                                ...editingItem,
+                                role: e.target.value
+                              })}
+                            >
+                              {personnelRoles.map(role => (
+                                <option key={role.value} value={role.value}>
+                                  {role.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type={accessor === 'quantity' ? 'number' : 'text'}
+                              value={editingItem[accessor] || ''}
+                              onChange={(e) => setEditingItem({
+                                ...editingItem,
+                                [accessor]: e.target.value
+                              })}
+                              className="edit-input"
+                            />
+                          )
                         ) : (
+                          accessor === 'assignedTo' ? (item[accessor] || 'Unassigned') :
+                          accessor === 'material' ? (item.material || item.name || '-') :
                           item[accessor] || '-'
                         )}
                       </div>
@@ -541,15 +824,6 @@ const AdministratorPage = () => {
                     type="date" 
                     value={formData.machines.lastMaintenance}
                     onChange={(e) => handleInputChange('machines', 'lastMaintenance', e.target.value)}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <h3>Next Maintenance Date</h3>
-                  <input 
-                    type="date" 
-                    value={formData.machines.nextMaintenance}
-                    onChange={(e) => handleInputChange('machines', 'nextMaintenance', e.target.value)}
                   />
                 </div>
                 

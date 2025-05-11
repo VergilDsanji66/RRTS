@@ -240,6 +240,11 @@
     }
 }
 
+.button-group{
+  display: flex;
+  gap: 1em;
+}
+
 .edit-btn{
     padding: 0.4rem 0.8rem;
     background-color: var(--primary);
@@ -302,4 +307,181 @@
     background-color: red;
     transform: translateY(-1px);
     color: white;
+}
+
+/* Add these styles to your AdministratorPage.css */
+
+/* Current Assignments Section */
+.current-assignments {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.current-assignments h2 {
+  color: var(--primary);
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.4rem;
+}
+
+.no-assignments {
+  color: var(--dark-gray);
+  text-align: center;
+  padding: 1rem;
+}
+
+.assignment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.assignment-card {
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: all 0.3s ease;
+}
+
+.assignment-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.assignment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.assignment-header h3 {
+  margin: 0;
+  color: var(--primary);
+}
+
+.assignment-priority {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.assignment-resources {
+  margin-top: 1rem;
+}
+
+.assignment-resources h4 {
+  margin: 0 0 0.5rem 0;
+  color: var(--dark-gray);
+  font-size: 1rem;
+}
+
+.resource-group {
+  margin-bottom: 1rem;
+}
+
+.resource-group strong {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--primary);
+}
+
+.resource-group ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.resource-group li {
+  margin-bottom: 0.2rem;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: white;
+}
+
+.status-badge.green {
+  background-color: #10b981;
+}
+
+.status-badge.blue {
+  background-color: #3b82f6;
+}
+
+.status-badge.yellow {
+  background-color: #f59e0b;
+}
+
+.status-badge.gray {
+  background-color: #6b7280;
+}
+
+/* Locality Badges */
+.locality-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: white;
+}
+
+.locality-badge.purple {
+  background-color: #8b5cf6;
+}
+
+.locality-badge.orange {
+  background-color: #f97316;
+}
+
+.locality-badge.teal {
+  background-color: #14b8a6;
+}
+
+.locality-badge.blue {
+  background-color: #3b82f6;
+}
+
+.locality-badge.gray {
+  background-color: #6b7280;
+}
+
+/* Edit Dropdowns */
+.edit-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.edit-dropdown {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.3rem;
+  background-color: white;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.edit-dropdown:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .assignment-grid {
+    grid-template-columns: 1fr;
+  }
 }

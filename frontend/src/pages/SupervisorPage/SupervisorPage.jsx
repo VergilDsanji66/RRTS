@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../componets/Navbar/Navbar';
 import { database } from '../../firebase/firebase';
-import { ref, onValue, update } from "firebase/database";
+import { ref, onValue, update, get } from "firebase/database";
 import { supervisorAssessment } from '../../firebase/firebaseFunctions';
 import './SupervisorPage.css';
 
@@ -132,29 +132,49 @@ const SupervisorPage = () => {
       )
     );
   }
-}, [allComplaints, activeTab]);
-
+  }, [allComplaints, activeTab]);
 
   // Mark complaint as completed
   const markAsCompleted = async (complaintRef) => {
-    if (!complaintRef) return;
-    
-    try {
-      setUpdatingStatus(true);
-      const complaintRefInDB = ref(database, `Complaints/${complaintRef}`);
-      await update(complaintRefInDB, { status: 'completed' });
-      
-      // Update local state
-      setAllComplaints(prev => prev.map(complaint => 
-        complaint.ref === complaintRef ? {...complaint, status: 'completed'} : complaint
-      ));
-    } catch (error) {
-      console.error('Error updating complaint status:', error);
-      setErrorMessage('Failed to update status');
-    } finally {
-      setUpdatingStatus(false);
+  if (!complaintRef) return;
+
+  try {
+    setUpdatingStatus(true);
+    const db = database;
+
+    // 1. First, get the assessmentId from the Complaint
+    const complaintSnapshot = await get(ref(db, `Complaints/${complaintRef}`));
+    if (!complaintSnapshot.exists()) {
+      throw new Error("Complaint not found");
     }
-  };
+
+    const assessmentId = complaintSnapshot.val().assessmentId; // Key difference!
+    if (!assessmentId) {
+      throw new Error("No linked assessment found");
+    }
+
+    // 2. Update both nodes
+    const updates = {};
+    updates[`Complaints/${complaintRef}/status`] = 'completed';
+    updates[`Assessments/${assessmentId}/status`] = 'completed'; // Uses assessmentId
+    updates[`Assessments/${assessmentId}/orderStatus`] = 'completed'; // Optional
+
+    await update(ref(db), updates); // Atomic update
+
+    // 3. Update local state
+    setAllComplaints(prev => 
+      prev.map(complaint => 
+        complaint.ref === complaintRef ? { ...complaint, status: 'completed' } : complaint
+      )
+    );
+
+  } catch (error) {
+    console.error("Update error:", error);
+    setErrorMessage(error.message);
+  } finally {
+    setUpdatingStatus(false);
+  }
+};
 
   // Handle priority checkbox changes
   const handlePriorityChange = (priority) => {
