@@ -8,6 +8,7 @@ import Cleck from './pages/CleckPage/Cleck.jsx'
 import AdministratorPage from './pages/AdministratorPage/AdministratorPage.jsx'
 import MayorPage from './pages/MayorPage/MayorPage.jsx'
 import SupervisorPage from './pages/SupervisorPage/SupervisorPage.jsx'
+import AdminSecurity from './pages/adminSecurity/AdminSecurity.jsx'
 
 const router = createBrowserRouter([
   {path: '/', element: <App />},
@@ -16,6 +17,7 @@ const router = createBrowserRouter([
   {path: '/AdministratorPage', element: <AdministratorPage/>},
   {path: '/MayorPage', element: <MayorPage/>},
   {path: '/SupervisorPage', element: <SupervisorPage/>},
+  {path: '/AdminSecurity', element: <AdminSecurity/>},
 ])
 
 createRoot(document.getElementById('root')).render(

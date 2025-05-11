@@ -9,6 +9,7 @@ const SupervisorPage = () => {
   // State for complaints data
   const [allComplaints, setAllComplaints] = useState([]);
   const [filteredComplaints, setFilteredComplaints] = useState([]);
+  const [assignedComplaints, setAssignedComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState('Pending');
@@ -96,11 +97,12 @@ const SupervisorPage = () => {
     }
   };
 
-  // Fetch all complaints
+  // Fetch all complaints and assigned data
   useEffect(() => {
     const complaintsRef = ref(database, 'Complaints');
+    const assignedRef = ref(database, 'Assigned');
     
-    const unsubscribe = onValue(complaintsRef, (snapshot) => {
+    const unsubscribeComplaints = onValue(complaintsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const complaintsArray = Object.entries(data).map(([key, value]) => ({
@@ -111,70 +113,89 @@ const SupervisorPage = () => {
       } else {
         setAllComplaints([]);
       }
+    }, (error) => {
+      console.error("Error fetching complaints: ", error);
+    });
+
+    const unsubscribeAssigned = onValue(assignedRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const assignedArray = Object.entries(data).map(([key, value]) => ({
+          ...value,
+          id: key
+        }));
+        setAssignedComplaints(assignedArray);
+      } else {
+        setAssignedComplaints([]);
+      }
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching data: ", error);
+      console.error("Error fetching assigned data: ", error);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeComplaints();
+      unsubscribeAssigned();
+    };
   }, []);
 
   // Filter complaints based on active tab
   useEffect(() => {
-  if (activeTab === 'view schedule') {
-    setFilteredComplaints(allComplaints);
-  } else {
-    setFilteredComplaints(
-      allComplaints.filter(complaint => 
-        complaint.status === activeTab || 
-        (activeTab === 'Pending' && !complaint.status)
-      )
-    );
-  }
+    if (activeTab === 'view schedule') {
+      // We'll handle the schedule view separately
+      setFilteredComplaints([]);
+    } else {
+      setFilteredComplaints(
+        allComplaints.filter(complaint => 
+          complaint.status === activeTab || 
+          (activeTab === 'Pending' && !complaint.status)
+        )
+      );
+    }
   }, [allComplaints, activeTab]);
 
   // Mark complaint as completed
   const markAsCompleted = async (complaintRef) => {
-  if (!complaintRef) return;
+    if (!complaintRef) return;
 
-  try {
-    setUpdatingStatus(true);
-    const db = database;
+    try {
+      setUpdatingStatus(true);
+      const db = database;
 
-    // 1. First, get the assessmentId from the Complaint
-    const complaintSnapshot = await get(ref(db, `Complaints/${complaintRef}`));
-    if (!complaintSnapshot.exists()) {
-      throw new Error("Complaint not found");
+      // 1. First, get the assessmentId from the Complaint
+      const complaintSnapshot = await get(ref(db, `Complaints/${complaintRef}`));
+      if (!complaintSnapshot.exists()) {
+        throw new Error("Complaint not found");
+      }
+
+      const assessmentId = complaintSnapshot.val().assessmentId;
+      if (!assessmentId) {
+        throw new Error("No linked assessment found");
+      }
+
+      // 2. Update both nodes
+      const updates = {};
+      updates[`Complaints/${complaintRef}/status`] = 'completed';
+      updates[`Assessments/${assessmentId}/status`] = 'completed';
+      updates[`Assessments/${assessmentId}/orderStatus`] = 'completed';
+
+      await update(ref(db), updates);
+
+      // 3. Update local state
+      setAllComplaints(prev => 
+        prev.map(complaint => 
+          complaint.ref === complaintRef ? { ...complaint, status: 'completed' } : complaint
+        )
+      );
+
+    } catch (error) {
+      console.error("Update error:", error);
+      setErrorMessage(error.message);
+    } finally {
+      setUpdatingStatus(false);
     }
-
-    const assessmentId = complaintSnapshot.val().assessmentId; // Key difference!
-    if (!assessmentId) {
-      throw new Error("No linked assessment found");
-    }
-
-    // 2. Update both nodes
-    const updates = {};
-    updates[`Complaints/${complaintRef}/status`] = 'completed';
-    updates[`Assessments/${assessmentId}/status`] = 'completed'; // Uses assessmentId
-    updates[`Assessments/${assessmentId}/orderStatus`] = 'completed'; // Optional
-
-    await update(ref(db), updates); // Atomic update
-
-    // 3. Update local state
-    setAllComplaints(prev => 
-      prev.map(complaint => 
-        complaint.ref === complaintRef ? { ...complaint, status: 'completed' } : complaint
-      )
-    );
-
-  } catch (error) {
-    console.error("Update error:", error);
-    setErrorMessage(error.message);
-  } finally {
-    setUpdatingStatus(false);
-  }
-};
+  };
 
   // Handle priority checkbox changes
   const handlePriorityChange = (priority) => {
@@ -243,7 +264,6 @@ const SupervisorPage = () => {
       return;
     }
     
-    // Find the full complaint data to verify it exists
     const selectedComplaint = allComplaints.find(c => c.ref === selectedComplaintRef);
     if (!selectedComplaint) {
       setErrorMessage('Selected complaint not found');
@@ -281,17 +301,14 @@ const SupervisorPage = () => {
 
     try {
       setIsSubmitting(true);
-      // Pass the complaint reference ID directly
       await supervisorAssessment(selectedComplaintRef, assessmentData);
       
       setSubmitSuccess(true);
       
-      // Update local complaint status to 'assessed'
       setAllComplaints(prev => prev.map(complaint => 
         complaint.ref === selectedComplaintRef ? {...complaint, status: 'assessed'} : complaint
       ));
       
-      // Reset form
       setSelectedComplaintRef('');
       setSelectedIssueType('');
       setAssessmentReport('');
@@ -308,6 +325,17 @@ const SupervisorPage = () => {
       setErrorMessage(error.message || 'Failed to submit assessment');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Get priority score for sorting
+  const getPriorityScore = (localityType) => {
+    switch (localityType) {
+      case 'commercial': return 4;
+      case 'industrial': return 3;
+      case 'mixed': return 2;
+      case 'residential': return 1;
+      default: return 0;
     }
   };
 
@@ -355,40 +383,112 @@ const SupervisorPage = () => {
           </div>
         )}
         
-        <div className="today-report">
-          {filteredComplaints.length > 0 ? (
-            filteredComplaints.map((complaint) => (
-              <div key={complaint.ref} className="report">
-                <div className="report-top">
-                  <h3>{complaint.roadName || 'N/A'}, {complaint.issueType || 'N/A'}</h3>
-                  <div className="status-container">
-                    <span className={`status-badge ${complaint.status || 'Pending'}`}>
-                      {complaint.status || 'Pending'}
-                    </span>
-                    {complaint.status === 'assessed' && (
-                      <button 
-                        className="complete-btn"
-                        onClick={() => markAsCompleted(complaint.ref)}
-                        disabled={updatingStatus}
-                      >
-                        {updatingStatus ? 'Updating...' : 'Mark as Completed'}
-                      </button>
-                    )}
+        {activeTab !== 'view schedule' && (
+          <div className="today-report">
+            {filteredComplaints.length > 0 ? (
+              filteredComplaints.map((complaint) => (
+                <div key={complaint.ref} className="report">
+                  <div className="report-top">
+                    <h3>{complaint.roadName || 'N/A'}, {complaint.issueType || 'N/A'}</h3>
+                    <div className="status-container">
+                      <span className={`status-badge ${complaint.status || 'Pending'}`}>
+                        {complaint.status || 'Pending'}
+                      </span>
+                      {complaint.status === 'assessed' && (
+                        <button 
+                          className="complete-btn"
+                          onClick={() => markAsCompleted(complaint.ref)}
+                          disabled={updatingStatus}
+                        >
+                          {updatingStatus ? 'Updating...' : 'Mark as Completed'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="location">
+                    <p>Ref # {complaint.ref || 'N/A'}</p>
+                    <p>Location: {complaint.locationArea || 'N/A'}</p>
+                  </div>
+                  <div className="description">
+                    <p>{complaint.description || 'No description provided'}</p>
                   </div>
                 </div>
-                <div className="location">
-                  <p>Ref # {complaint.ref || 'N/A'}</p>
-                  <p>Location: {complaint.locationArea || 'N/A'}</p>
-                </div>
-                <div className="description">
-                  <p>{complaint.description || 'No description provided'}</p>
-                </div>
+              ))
+            ) : (
+              <p>No {activeTab.toLowerCase()} complaints found</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'view schedule' && (
+          <div className="schedule-view">
+            <h2>Repair Schedule</h2>
+            {assignedComplaints.length > 0 ? (
+              <div className="schedule-list">
+                {assignedComplaints
+                  .sort((a, b) => getPriorityScore(b.localityType) - getPriorityScore(a.localityType))
+                  .map((assignment) => {
+                    // Find the corresponding complaint
+                    const complaint = allComplaints.find(c => c.assessmentId === assignment.id);
+                    return (
+                      <div key={assignment.id} className="schedule-item">
+                        <div className="schedule-header">
+                          <h3>
+                            {complaint ? `REF#${complaint.ref} - ${complaint.roadName}` : `Assignment ID: ${assignment.id}`}
+                          </h3>
+                          <span className={`priority-badge ${assignment.localityType}`}>
+                            {assignment.localityType.toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        {complaint && (
+                          <div className="schedule-complaint-info">
+                            <p><strong>Issue:</strong> {complaint.issueType}</p>
+                            <p><strong>Location:</strong> {complaint.locationArea}</p>
+                            <p><strong>Description:</strong> {complaint.description}</p>
+                          </div>
+                        )}
+                        
+                        <div className="schedule-assignment-info">
+                          <h4>Assigned Resources</h4>
+                          <div className="resource-cards">
+                            {assignment.equipment && assignment.equipment.length > 0 && (
+                              <div className="resource-card">
+                                <h5>Equipment</h5>
+                                <ul>
+                                  {assignment.equipment.map((eq, index) => (
+                                    <li key={index}>{eq}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {assignment.labour && assignment.labour.length > 0 && (
+                              <div className="resource-card">
+                                <h5>Personnel</h5>
+                                <ul>
+                                  {assignment.labour.map((emp, index) => (
+                                    <li key={index}>{emp}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="schedule-status">
+                          <p><strong>Status:</strong> <span className="status-text">{assignment.status}</span></p>
+                          <p><strong>Assigned on:</strong> {new Date(assignment.timestamp).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
-            ))
-          ) : (
-            <p>No {activeTab.toLowerCase()} complaints found</p>
-          )}
-        </div>
+            ) : (
+              <p>No assigned repairs in the schedule</p>
+            )}
+          </div>
+        )}
 
         {activeTab !== 'view schedule' && (
           <>
@@ -625,21 +725,6 @@ const SupervisorPage = () => {
               </div>
             )}
           </>
-        )}
-
-        {activeTab === 'view schedule' && (
-          <div className="schedule-placeholder">
-            <h2>Schedule View</h2>
-            <p>This feature will display the repair schedule once implemented.</p>
-            <p>Currently showing all complaints for reference:</p>
-            <ul className="schedule-list">
-              {filteredComplaints.map(complaint => (
-                <li key={complaint.ref}>
-                  REF#{complaint.ref} - {complaint.roadName} - {complaint.issueType} - {complaint.status || 'Pending'}
-                </li>
-              ))}
-            </ul>
-          </div>
         )}
       </div>
     </div>

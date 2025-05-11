@@ -6,8 +6,15 @@ const Navbar = ({ id }) => {
   // Get the role based on the id prop
   const role = Roles.find(r => r.id === id);
   
-  // Get today's date for display
-  const today = new Date().toLocaleDateString();
+  // Get today's date in dd-mm-yyyy format
+  const formatDate = (date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+  
+  const today = formatDate(new Date());
 
   return (
     <div className="navbar">

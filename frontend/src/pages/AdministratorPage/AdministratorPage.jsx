@@ -41,8 +41,8 @@ const AdministratorPage = () => {
     ]
   };
 
-  // Table headers configuration
-  const tableHeaders = {
+  // tables headers configuration
+  const tablesHeaders = {
     personal: {
       Header: ['ID', 'Name', 'Role', 'Status', 'Assigned To', 'Actions'],
       accessors: ['id', 'name', 'role', 'status', 'assignedTo', 'actions']
@@ -307,126 +307,172 @@ const AdministratorPage = () => {
 
   // Auto-assign resources based on priority
   const autoAssignResources = async () => {
-    setIsLoading(true);
-    setAssignmentStatus('Assigning resources...');
-    
-    try {
-      // Get all assessments that need resources
-      const pendingAssessments = assessments.filter(
-        a => (a.status === 'assessed' || a.status === 'on_hold') && 
-             a.resources && 
-             (a.resources.labour || a.resources.equipment || a.resources.materials)
-      );
+  setIsLoading(true);
+  setAssignmentStatus('Assigning resources...');
+  
+  try {
+    // Get all assessments that need resources
+    const pendingAssessments = assessments.filter(
+      a => (a.status === 'assessed' || a.status === 'on_hold') && 
+            a.resources && 
+            (a.resources.labour || a.resources.equipment || a.resources.materials)
+    );
 
-      if (pendingAssessments.length === 0) {
-        setAssignmentStatus('No assessments need resources or assessments are missing resource requirements');
-        return;
-      }
+    if (pendingAssessments.length === 0) {
+      setAssignmentStatus('No assessments need resources or assessments are missing resource requirements');
+      return;
+    }
 
-      // Get current data snapshots
-      const [machinesSnapshot, personnelSnapshot, materialsSnapshot] = await Promise.all([
-        get(ref(database, 'DataQuery/machines')),
-        get(ref(database, 'DataQuery/personal')),
-        get(ref(database, 'DataQuery/materials'))
-      ]);
+    // Get fresh snapshots of all data
+    const [machinesSnapshot, personnelSnapshot, materialsSnapshot] = await Promise.all([
+      get(ref(database, 'DataQuery/machines')),
+      get(ref(database, 'DataQuery/personal')),
+      get(ref(database, 'DataQuery/materials'))
+    ]);
 
-      const machinesData = machinesSnapshot.val() || {};
-      const personnelData = personnelSnapshot.val() || {};
-      const materialsData = materialsSnapshot.val() || {};
+    let machinesData = machinesSnapshot.val() || {};
+    let personnelData = personnelSnapshot.val() || {};
+    const materialsData = materialsSnapshot.val() || {};
 
-      // Check resource availability for each
-      const assessmentsWithAvailability = await Promise.all(
-        pendingAssessments.map(assessment => 
-          checkResourceAvailability(assessment, machinesData, personnelData, materialsData)
-        )
-      );
+    // Convert to array and mark which resources are available
+    let availableMachines = Object.entries(machinesData)
+      .filter(([_, m]) => m.status === 'active' && !m.assignedTo)
+      .map(([key, m]) => ({ ...m, firebaseKey: key, assigned: false }));
 
-      // Sort by locality priority (commercial first)
-      const prioritizedAssessments = assessmentsWithAvailability.sort(
-        (a, b) => (a.localityPriority || 4) - (b.localityPriority || 4)
-      );
+    let availablePersonnel = Object.entries(personnelData)
+      .filter(([_, p]) => p.status === 'active' && !p.assignedTo)
+      .map(([key, p]) => ({ ...p, firebaseKey: key, assigned: false }));
 
-      const updates = {};
-      let anyAssigned = false;
+    const updates = {};
+    let anyAssigned = false;
 
-      for (const assessment of prioritizedAssessments) {
-        const { id, availableResources, resources, roadName } = assessment;
-        const assignmentName = roadName || `job-${id}`;
+    // Sort assessments by priority
+    const prioritizedAssessments = [...pendingAssessments].sort(
+      (a, b) => (localityPriority[a.localityType?.toLowerCase()] || 4) - 
+                (localityPriority[b.localityType?.toLowerCase()] || 4)
+    );
 
-        // Check if we have all required resources
-        const hasAllEquipment = !resources?.equipment || 
-          (availableResources.equipment.length >= Object.values(resources.equipment).reduce((a, b) => a + b, 0));
-        
-        const hasAllLabour = !resources?.labour || 
-          (availableResources.labour.length >= Object.values(resources.labour).reduce((a, b) => a + b, 0));
-        
-        const hasAllMaterials = !resources?.materials || 
-          (availableResources.materials.length === Object.keys(resources.materials).length);
+    for (const assessment of prioritizedAssessments) {
+      const { id, resources, roadName } = assessment;
+      const assignmentName = roadName || `job-${id}`;
 
-        if (hasAllEquipment && hasAllLabour && hasAllMaterials) {
-          // Create assignment
-          updates[`Assigned/${assignmentName}`] = {
-            ...availableResources,
-            assessmentId: id,
-            status: 'active',
-            timestamp: new Date().toISOString(),
-            localityType: assessment.localityType
-          };
+      const assignmentResources = {
+        equipment: [],
+        labour: [],
+        materials: []
+      };
 
-          // Mark equipment as assigned
-          availableResources.equipment?.forEach(id => {
-            const machineEntry = Object.entries(machinesData).find(([_, m]) => m.id === id);
-            if (machineEntry) {
-              const [firebaseKey] = machineEntry;
-              updates[`DataQuery/machines/${firebaseKey}/assignedTo`] = assignmentName;
-            }
+      let hasAllResources = true;
+
+      // Check and assign equipment
+      if (resources?.equipment) {
+        for (const [type, needed] of Object.entries(resources.equipment)) {
+          const available = availableMachines
+            .filter(m => m.type === type && !m.assigned)
+            .slice(0, needed);
+
+          if (available.length < needed) {
+            hasAllResources = false;
+            break;
+          }
+
+          assignmentResources.equipment.push(...available.map(m => m.id));
+          
+          // Mark machines as assigned
+          available.forEach(m => {
+            m.assigned = true;
+            updates[`DataQuery/machines/${m.firebaseKey}/assignedTo`] = assignmentName;
           });
-
-          // Mark personnel as assigned
-          availableResources.labour?.forEach(id => {
-            const personEntry = Object.entries(personnelData).find(([_, p]) => p.id === id);
-            if (personEntry) {
-              const [firebaseKey] = personEntry;
-              updates[`DataQuery/personal/${firebaseKey}/assignedTo`] = assignmentName;
-            }
-          });
-
-          // Update material quantities
-          availableResources.materials?.forEach(({ material, quantity, firebaseKey }) => {
-            if (firebaseKey && materialsData[firebaseKey]) {
-              updates[`DataQuery/materials/${firebaseKey}/quantity`] = materialsData[firebaseKey].quantity - quantity;
-              if (updates[`DataQuery/materials/${firebaseKey}/quantity`] <= 0) {
-                updates[`DataQuery/materials/${firebaseKey}/status`] = 'unavailable';
-              }
-            }
-          });
-
-          // Update assessment status
-          updates[`Assessments/${id}/status`] = 'in_progress';
-          anyAssigned = true;
-        } else {
-          // Not enough resources, mark as on hold
-          updates[`Assessments/${id}/status`] = 'on_hold';
         }
       }
 
-      if (Object.keys(updates).length > 0) {
-        await update(ref(database), updates);
+      // Check and assign personnel
+      if (hasAllResources && resources?.labour) {
+        for (const [role, needed] of Object.entries(resources.labour)) {
+          const available = availablePersonnel
+            .filter(p => p.role === role && !p.assigned)
+            .slice(0, needed);
+
+          if (available.length < needed) {
+            hasAllResources = false;
+            break;
+          }
+
+          assignmentResources.labour.push(...available.map(p => p.id));
+          
+          // Mark personnel as assigned
+          available.forEach(p => {
+            p.assigned = true;
+            updates[`DataQuery/personal/${p.firebaseKey}/assignedTo`] = assignmentName;
+          });
+        }
       }
 
-      if (anyAssigned) {
-        setAssignmentStatus('Resources assigned based on priority!');
-      } else {
-        setAssignmentStatus('No assessments could be assigned - insufficient resources');
+      // Check and assign materials
+      if (hasAllResources && resources?.materials) {
+        for (const [material, needed] of Object.entries(resources.materials)) {
+          const materialEntry = Object.entries(materialsData).find(
+            ([_, m]) => m.material === material && 
+                        m.status === 'available' && 
+                        m.quantity >= needed
+          );
+
+          if (!materialEntry) {
+            hasAllResources = false;
+            break;
+          }
+
+          const [firebaseKey, mat] = materialEntry;
+          assignmentResources.materials.push({
+            material,
+            quantity: needed,
+            firebaseKey
+          });
+
+          // Update material quantity
+          updates[`DataQuery/materials/${firebaseKey}/quantity`] = mat.quantity - needed;
+          if (mat.quantity - needed <= 0) {
+            updates[`DataQuery/materials/${firebaseKey}/status`] = 'unavailable';
+          }
+        }
       }
-    } catch (error) {
-      console.error('Assignment error:', error);
-      setAssignmentStatus(`Error: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-      setTimeout(() => setAssignmentStatus(''), 5000);
+
+      if (hasAllResources) {
+        // Create assignment
+        updates[`Assigned/${assignmentName}`] = {
+          ...assignmentResources,
+          assessmentId: id,
+          status: 'active',
+          timestamp: new Date().toISOString(),
+          localityType: assessment.localityType
+        };
+
+        // Update assessment status
+        updates[`Assessments/${id}/status`] = 'in_progress';
+        anyAssigned = true;
+      } else {
+        // Not enough resources, mark as on hold
+        updates[`Assessments/${id}/status`] = 'on_hold';
+      }
     }
-  };
+
+    if (Object.keys(updates).length > 0) {
+      await update(ref(database), updates);
+    }
+
+    if (anyAssigned) {
+      setAssignmentStatus('Resources assigned based on priority!');
+    } else {
+      setAssignmentStatus('No assessments could be assigned - insufficient resources');
+    }
+  } catch (error) {
+    console.error('Assignment error:', error);
+    setAssignmentStatus(`Error: ${error.message}`);
+  } finally {
+    setIsLoading(false);
+    setTimeout(() => setAssignmentStatus(''), 5000);
+  }
+};
 
   // Check resource availability with fresh data
   const checkResourceAvailability = async (assessment, machinesData, personnelData, materialsData) => {
@@ -455,8 +501,8 @@ const AdministratorPage = () => {
       for (const [role, needed] of Object.entries(resources.labour)) {
         const available = Object.values(personnelData).filter(
           person => person.role === role && 
-                   person.status === 'active' && 
-                   !person.assignedTo
+                    person.status === 'active' && 
+                    !person.assignedTo
         ).slice(0, needed);
         
         availableResources.labour.push(...available.map(p => p.id));
@@ -468,8 +514,8 @@ const AdministratorPage = () => {
       for (const [material, needed] of Object.entries(resources.materials)) {
         const available = Object.values(materialsData).find(
           m => m.material === material && 
-               m.status === 'available' && 
-               m.quantity >= needed
+                m.status === 'available' && 
+                m.quantity >= needed
         );
         
         if (available) {
@@ -631,20 +677,20 @@ const AdministratorPage = () => {
           )}
         </div>
 
-        {/* Data table */}
+        {/* Data tables */}
         {selectedOption && (
-          <div className="tables">
+          <div className="tabless">
             <div className="hold">
-              <div className="table-header">
-                {tableHeaders[selectedOption].Header.map((header, index) => (
+              <div className="tables-header">
+                {tablesHeaders[selectedOption].Header.map((header, index) => (
                   <div key={index} className="header-cell">{header}</div>
                 ))}
               </div>
-              <div className="table-items">
+              <div className="tables-items">
                 {data.map((item, index) => (
-                  <div key={index} className="table-row">
-                    {tableHeaders[selectedOption].accessors.map((accessor, i) => (
-                      <div key={i} className="table-cell">
+                  <div key={index} className="tables-rows">
+                    {tablesHeaders[selectedOption].accessors.map((accessor, i) => (
+                      <div key={i} className="tables-cell">
                         {accessor === 'actions' ? (
                           <div className="action-buttons">
                             <button 

@@ -480,3 +480,208 @@ textarea {
   background-color: #cccccc;
   cursor: not-allowed;
 }
+
+/* Schedule View Styles */
+.schedule-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background-color: var(--light);
+  border-radius: 1rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-view h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--primary);
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.schedule-item {
+  padding: 1.5rem;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 0.8rem;
+  border-left: 5px solid var(--primary);
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.schedule-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--dark);
+}
+
+.priority-badge {
+  padding: 0.3rem 0.8rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.priority-badge.commercial {
+  background-color: #ff4444;
+  color: white;
+}
+
+.priority-badge.industrial {
+  background-color: #ff9933;
+  color: white;
+}
+
+.priority-badge.mixed {
+  background-color: #3399ff;
+  color: white;
+}
+
+.priority-badge.residential {
+  background-color: #33cc33;
+  color: white;
+}
+
+.schedule-complaint-info {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.schedule-complaint-info p {
+  margin: 0.5rem 0;
+  color: var(--dark);
+}
+
+.schedule-complaint-info strong {
+  color: var(--primary);
+}
+
+.schedule-assignment-info {
+  margin-bottom: 1rem;
+}
+
+.schedule-assignment-info h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: var(--primary);
+}
+
+.resource-cards {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.resource-card {
+  flex: 1;
+  min-width: 200px;
+  padding: 1rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.resource-card h5 {
+  margin: 0 0 0.8rem 0;
+  font-size: 1rem;
+  color: var(--primary);
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.resource-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.resource-card li {
+  padding: 0.3rem 0.5rem;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.schedule-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border-color);
+  font-size: 0.9rem;
+}
+
+.schedule-status p {
+  margin: 0;
+  color: var(--dark-gray);
+}
+
+.status-text {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-text.active {
+  color: #3399ff;
+}
+
+.status-text.completed {
+  color: #33cc33;
+}
+
+.status-text.pending {
+  color: #ff9933;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .resource-cards {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .resource-card {
+    min-width: 100%;
+  }
+  
+  .schedule-status {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .schedule-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .priority-badge {
+    align-self: flex-start;
+  }
+}
