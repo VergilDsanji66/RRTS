@@ -151,7 +151,7 @@ const AdminSecurity = () => {
             <h1>User Management</h1>
             
             <div className="cleck-container">
-                <h3>{isEditing ? 'Edit User' : 'Add New User'}</h3>
+                <h3 style={{margin: '1rem 0'}}>{isEditing ? 'Edit User' : 'Add New User'}</h3>
                 
                 <form onSubmit={handleSubmit} className="Complaint-container">
                     {error && <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
