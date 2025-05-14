@@ -249,7 +249,7 @@ const AdminSecurity = () => {
             </div>
             
             <div className="entries-container">
-                <h3>User List</h3>
+                <h3 style={{margin: '1rem 0'}}>User List</h3>
                 
                 <div className="entries">
                     <div className="entries-header">
