@@ -1,346 +1,134 @@
 /* AdministratorPage.css */
 .admin-dashboard {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    background-color: var(--background);
-    padding: 1rem;
-}
-
-.h1-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.h1-top h2 {
-    font-size: 1.8rem;
-    color: var(--primary);
-    margin: 0;
-}
-
-.h1-top button {
-    padding: 0.6rem 1.2rem;
-    background-color: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
-
-.h1-top button:hover {
-    background-color: var(--secondary);
-    transform: translateY(-2px);
-}
-
-.options {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.5rem;
-}
-
-.option {
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    border-radius: 0.5rem;
-    transition: all 0.2s ease;
-    font-weight: 500;
-    color: var(--dark-gray);
-}
-
-.option:hover {
-    background-color: rgba(var(--primary-rgb), 0.1);
-    color: var(--primary);
-}
-
-.option.active {
-    background-color: var(--primary);
-    color: white;
-}
-
-.tabless {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 2rem;
-    background-color: white;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.tables-header {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    background-color: var(--primary);
-    color: white;
-    padding: 0.8rem 1rem;
-    width: 100%;
-    font-weight: 600;
-}
-
-.header-cell {
-    padding: 0.8rem 1rem;
-    text-align: left;
-}
-
-.tables-items {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-}
-
-.tables-rows {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    padding: 0.8rem 1rem;
-    border-bottom: 1px solid var(--border-color);
-    align-items: center;
-    transition: background-color 0.2s ease;
-}
-
-.tables-rows:last-child {
-    border-bottom: none;
-}
-
-.tables-rows:hover {
-    background-color: rgba(var(--primary-rgb), 0.05);
-}
-
-.tables-cell {
-    padding: 0.8rem 1rem;
-}
-
-.action-btn {
-    padding: 0.4rem 0.8rem;
-    background-color: var(--secondary);
-    color: white;
-    border: none;
-    border-radius: 0.3rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-}
-
-.action-btn:hover {
-    background-color: var(--primary-dark);
-    transform: translateY(-1px);
-}
-
-.add-Data {
-    background-color: white;
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    margin-top: 1.5rem;
-}
-
-.add-Data h2 {
-    color: var(--primary);
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    font-size: 1.4rem;
-}
-
-.add-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.form-group h3 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--dark-gray);
-}
-
-.add-form input,
-.add-form select {
-    width: 100%;
-    padding: 0.7rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    transition: all 0.2s ease;
-}
-
-.add-form input:focus,
-.add-form select:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
-}
-
-.submit-btn {
-    padding: 0.7rem 1.5rem;
-    background-color: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    align-self: flex-start;
-    grid-column: 1 / -1;
-    max-width: 200px;
-}
-
-.submit-btn:hover {
-    background-color: var(--secondary);
-    transform: translateY(-2px);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .options {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .tables-header,
-    .tables-rows {
-        grid-template-columns: repeat(3, 1fr);
-    }
-    
-    .add-form {
-        grid-template-columns: 1fr;
-    }
-    
-    .submit-btn {
-        max-width: 100%;
-    }
-}
-
-@media (max-width: 480px) {
-    .h1-top {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-    
-    .tables-header,
-    .tables-rows {
-        grid-template-columns: 1fr;
-    }
-    
-    .header-cell,
-    .tables-cell {
-        padding: 0.5rem;
-    }
-}
-
-.button-group{
   display: flex;
-  gap: 1em;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 1rem;
+  background-color: var(--background);
 }
 
-.edit-btn{
-    padding: 0.4rem 0.8rem;
-    background-color: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 0.3rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-    margin-right: 0.5rem;
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.edit-btn:hover{
-    background-color: var(--secondary);
-    transform: translateY(-1px);
+.admin-header .left{
+  display: flex;
+  gap: 1rem;
 }
 
-.delete-btn{
-    padding: 0.4rem 0.8rem;
-    border: none;
-    border-radius: 0.3rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
+.admin-header h2 {
+  font-size: 1.8rem;
+  color: var(--primary);
+  margin: 0;
 }
 
-.delete-btn:hover{
-    background-color: red;
-    transform: translateY(-1px);
-    color: white;
+
+.admin-actions {
+  display: flex;
+  gap: 1rem;
 }
 
-.save-btn{
-    padding: 0.4rem 0.8rem;
-    background-color: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 0.3rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-    margin: 0.5rem;
+.admin-actions button, .admin-header button {
+  padding: 0.6rem 1.2rem;
+  background-color: var( --primary);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
-.save-btn:hover{
-    background-color: var(--secondary);
-    transform: translateY(-1px);
+.admin-actions button:hover, .admin-header button:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
 }
 
-.cancel-btn{
-    padding: 0.4rem 0.8rem;
-    border: none;
-    border-radius: 0.3rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
+.admin-actions button.assigning {
+  background-color: #7f8c8d;
+  cursor: not-allowed;
 }
 
-.cancel-btn:hover{
-    background-color: red;
-    transform: translateY(-1px);
-    color: white;
+.assignment-status {
+  width: 100%;
+  padding: 0.8rem;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  text-align: center;
 }
 
-/* Add these styles to your AdministratorPage.css */
+.assignment-status.success {
+  background-color: #d4edda;
+  color: #155724;
+}
 
-/* Current Assignments Section */
+.assignment-status.error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.5rem;
+}
+
+.admin-tab {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  color: #7f8c8d;
+  background: none;
+  border: none;
+}
+
+.admin-tab:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+  color: var( --primary);
+}
+
+.admin-tab.active {
+  background-color: var( --primary);
+  color: white;
+}
+
 .current-assignments {
   background-color: white;
   padding: 1.5rem;
   border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
 }
 
-.current-assignments h2 {
+.current-assignments h3 {
   color: var(--primary);
   margin-top: 0;
-  margin-bottom: 1.5rem;
-  font-size: 1.4rem;
+  margin-bottom: 1rem;
 }
 
 .no-assignments {
-  color: var(--dark-gray);
+  color: #7f8c8d;
   text-align: center;
   padding: 1rem;
 }
 
-.assignment-grid {
+.assignments-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 
 .assignment-card {
-  border: 1px solid var(--border-color);
+  border: 1px solid #ddd;
   border-radius: 0.5rem;
   padding: 1rem;
   transition: all 0.3s ease;
@@ -358,9 +146,9 @@
   margin-bottom: 0.5rem;
 }
 
-.assignment-header h3 {
+.assignment-header h4 {
   margin: 0;
-  color: var(--primary);
+  color: var( --primary);
 }
 
 .assignment-priority {
@@ -375,9 +163,9 @@
   margin-top: 1rem;
 }
 
-.assignment-resources h4 {
+.assignment-resources h5 {
   margin: 0 0 0.5rem 0;
-  color: var(--dark-gray);
+  color: #7f8c8d;
   font-size: 1rem;
 }
 
@@ -388,7 +176,7 @@
 .resource-group strong {
   display: block;
   margin-bottom: 0.3rem;
-  color: var(--primary);
+  color: var( --primary);
 }
 
 .resource-group ul {
@@ -411,19 +199,19 @@
 }
 
 .status-badge.green {
-  background-color: #10b981;
+  background-color: #27ae60;
 }
 
 .status-badge.blue {
-  background-color: #3b82f6;
+  background-color: var( --primary);
 }
 
 .status-badge.yellow {
-  background-color: #f59e0b;
+  background-color: #f39c12;
 }
 
 .status-badge.gray {
-  background-color: #6b7280;
+  background-color: #7f8c8d;
 }
 
 /* Locality Badges */
@@ -437,51 +225,240 @@
 }
 
 .locality-badge.purple {
-  background-color: #8b5cf6;
+  background-color: #9b59b6;
 }
 
 .locality-badge.orange {
-  background-color: #f97316;
+  background-color: #e67e22;
 }
 
 .locality-badge.teal {
-  background-color: #14b8a6;
+  background-color: #1abc9c;
 }
 
 .locality-badge.blue {
-  background-color: #3b82f6;
+  background-color: var( --primary);
 }
 
 .locality-badge.gray {
-  background-color: #6b7280;
+  background-color: #7f8c8d;
 }
 
-/* Edit Dropdowns */
+/* Admin Table Container */
+.admin-table-container {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.admin-table-header {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  background-color: var( --primary);
+  color: white;
+  font-weight: 600;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+}
+
+.admin-table-header-cell {
+  padding: 0.8rem 1rem;
+  text-align: left;
+}
+
+.admin-table-body {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.admin-table-row {
+  display: contents;
+}
+
+.admin-table-row:hover .admin-table-cell {
+  background-color: rgba(52, 152, 219, 0.05);
+}
+
+.admin-table-cell {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.edit-btn, .delete-btn, .save-btn, .cancel-btn {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.edit-btn, .save-btn {
+  background-color: var( --primary);
+  color: white;
+}
+
+.edit-btn:hover, .save-btn:hover {
+  background-color: #2980b9;
+  transform: translateY(-1px);
+}
+
+.delete-btn, .cancel-btn {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.delete-btn:hover, .cancel-btn:hover {
+  background-color: #c0392b;
+  transform: translateY(-1px);
+}
+
+/* Edit Controls */
 .edit-controls {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 1rem;
+  padding: 1rem;
+  border-top: 1px solid #eee;
 }
 
-.edit-dropdown {
+/* Form Inputs in Edit Mode */
+.edit-dropdown, .edit-input {
   padding: 0.5rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid #ddd;
   border-radius: 0.3rem;
-  background-color: white;
-  font-size: 0.9rem;
   width: 100%;
+  font-size: 0.9rem;
 }
 
-.edit-dropdown:focus {
+.edit-dropdown:focus, .edit-input:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+  border-color: var( --primary);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
 }
 
-/* Responsive adjustments */
+/* Admin Form Container */
+.admin-form-container {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.admin-form-container h3 {
+  color: var(--primary);
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.admin-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.admin-form input,
+.admin-form select {
+  padding: 0.7rem;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.admin-form input:focus,
+.admin-form select:focus {
+  outline: none;
+  border-color: var( --primary);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.submit-btn {
+  padding: 0.7rem 1.5rem;
+  background-color: var( --primary);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+  grid-column: 1 / -1;
+  max-width: 200px;
+}
+
+.submit-btn:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1200px) {
+  .admin-table-header,
+  .admin-table-body {
+    grid-template-columns: repeat(3, 1fr);
+    min-width: 900px;
+  }
+}
+
 @media (max-width: 768px) {
-  .assignment-grid {
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .admin-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  
+  .assignments-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .admin-form {
+    grid-template-columns: 1fr;
+  }
+  
+  .submit-btn {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .admin-tab {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
   }
 }

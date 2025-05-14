@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../../componets/Navbar/Navbar';
 import { ref, push, set, onValue, update, remove, get } from 'firebase/database';
 import { database } from '../../firebase/firebase';
 import './AdministratorPage.css';
 
 const AdministratorPage = () => {
+
+  const navigate = useNavigate();
+
   // Resource options
   const machineTypes = [
     'Asphalt Paver', 'Road Roller', 'Pothole Patching Machine', 
@@ -41,33 +45,33 @@ const AdministratorPage = () => {
     ]
   };
 
-  // tables headers configuration
-  const tablesHeaders = {
+  // Table headers configuration
+  const tableConfig = {
     personal: {
-      Header: ['ID', 'Name', 'Role', 'Status', 'Assigned To', 'Actions'],
+      headers: ['ID', 'Name', 'Role', 'Status', 'Assigned To', 'Actions'],
       accessors: ['id', 'name', 'role', 'status', 'assignedTo', 'actions']
     },
     machines: {
-      Header: ['ID', 'Machine Type', 'Status', 'Last Maintenance', 'Assigned To', 'Actions'],
+      headers: ['ID', 'Machine Type', 'Status', 'Last Maintenance', 'Assigned To', 'Actions'],
       accessors: ['id', 'type', 'status', 'lastMaintenance', 'assignedTo', 'actions']
     },
     materials: {
-      Header: ['ID', 'Material', 'Quantity', 'Unit', 'Status', 'Actions'],
+      headers: ['ID', 'Material', 'Quantity', 'Unit', 'Status', 'Actions'],
       accessors: ['id', 'material', 'quantity', 'unit', 'status', 'actions']
     }
   };
 
   // State
-  const [selectedOption, setSelectedOption] = useState('personal');
-  const [data, setData] = useState([]);
+  const [selectedTab, setSelectedTab] = useState('personal');
+  const [tableData, setTableData] = useState([]);
   const [assignedResources, setAssignedResources] = useState({});
   const [assessments, setAssessments] = useState([]);
-  const [formData, setFormData] = useState({
+  const [formInputs, setFormInputs] = useState({
     personal: { name: '', role: '', status: '' },
     machines: { type: '', status: '', lastMaintenance: '' },
     materials: { name: '', unit: '', quantity: '', status: '' }
   });
-  const [editingItem, setEditingItem] = useState(null);
+  const [editingRow, setEditingRow] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [assignmentStatus, setAssignmentStatus] = useState('');
 
@@ -89,18 +93,19 @@ const AdministratorPage = () => {
     return `${day}-${month}-${year}`;
   };
 
+
   // Fetch all necessary data
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const dataRef = ref(database, `DataQuery/${selectedOption}`);
+        const dataRef = ref(database, `DataQuery/${selectedTab}`);
         const assignedRef = ref(database, 'Assigned');
         const assessmentsRef = ref(database, 'Assessments');
 
         const unsubscribeData = onValue(dataRef, (snapshot) => {
           const data = snapshot.val() || {};
-          setData(Object.entries(data).map(([key, value]) => ({ ...value, firebaseKey: key })));
+          setTableData(Object.entries(data).map(([key, value]) => ({ ...value, firebaseKey: key })))
         });
 
         const unsubscribeAssigned = onValue(assignedRef, (snapshot) => {
@@ -129,7 +134,7 @@ const AdministratorPage = () => {
     };
 
     fetchData();
-  }, [selectedOption]);
+  }, [selectedTab]);
 
   // Auto-unassign completed resources
   useEffect(() => {
@@ -206,11 +211,11 @@ const AdministratorPage = () => {
   }, [assignedResources, assessments]);
 
   // Handle form input changes
-  const handleInputChange = (option, field, value) => {
-    setFormData(prev => ({
+  const handleInputChange = (tab, field, value) => {
+    setFormInputs(prev => ({
       ...prev,
-      [option]: {
-        ...prev[option],
+      [tab]: {
+        ...prev[tab],
         [field]: value
       }
     }));
@@ -220,35 +225,35 @@ const AdministratorPage = () => {
   const generateId = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   // Add new resource
-  const handleSubmit = async (e, option) => {
+  const handleSubmit = async (e, tab) => {
     e.preventDefault();
     try {
       const newId = generateId(
-        option === 'personal' ? 'EMP' : 
-        option === 'machines' ? 'MCH' : 'MAT'
+        tab === 'personal' ? 'EMP' : 
+        tab === 'machines' ? 'MCH' : 'MAT'
       );
 
       const newItem = {
         id: newId,
-        ...formData[option],
+        ...formInputs[tab],
         assignedTo: "",
         dateAdded: new Date().toISOString()
       };
 
-      if (option === 'materials') {
-        newItem.material = formData.materials.name;
+      if (tab === 'materials') {
+        newItem.material = formInputs.materials.name;
         delete newItem.name;
       }
 
-      const newItemRef = push(ref(database, `DataQuery/${option}`));
+      const newItemRef = push(ref(database, `DataQuery/${tab}`));
       await set(newItemRef, newItem);
 
-      setFormData(prev => ({
+      setFormInputs(prev => ({
         ...prev,
-        [option]: Object.fromEntries(Object.keys(prev[option]).map(key => [key, '']))
+        [tab]: Object.fromEntries(Object.keys(prev[tab]).map(key => [key, '']))
       }));
 
-      alert(`${option.charAt(0).toUpperCase() + option.slice(1)} added successfully!`);
+      alert(`${tab.charAt(0).toUpperCase() + tab.slice(1)} added successfully!`);
     } catch (error) {
       console.error('Error adding data:', error);
       alert('Failed to add data');
@@ -257,34 +262,34 @@ const AdministratorPage = () => {
 
   // Edit resource
   const handleEdit = (item) => {
-    setEditingItem(item);
+    setEditingRow(item);
   };
 
   // Save edited resource
   const handleSaveEdit = async () => {
-    if (!editingItem) return;
+    if (!editingRow) return;
 
     try {
       const updates = {};
-      if (selectedOption === 'personal') {
-        updates['name'] = editingItem.name;
-        updates['role'] = editingItem.role;
-        updates['status'] = editingItem.status;
-        updates['assignedTo'] = editingItem.assignedTo;
-      } else if (selectedOption === 'machines') {
-        updates['type'] = editingItem.type;
-        updates['status'] = editingItem.status;
-        updates['lastMaintenance'] = editingItem.lastMaintenance;
-        updates['assignedTo'] = editingItem.assignedTo;
-      } else if (selectedOption === 'materials') {
-        updates['material'] = editingItem.material;
-        updates['quantity'] = editingItem.quantity;
-        updates['unit'] = editingItem.unit;
-        updates['status'] = editingItem.status;
+      if (selectedTab === 'personal') {
+        updates['name'] = editingRow.name;
+        updates['role'] = editingRow.role;
+        updates['status'] = editingRow.status;
+        updates['assignedTo'] = editingRow.assignedTo;
+      } else if (selectedTab === 'machines') {
+        updates['type'] = editingRow.type;
+        updates['status'] = editingRow.status;
+        updates['lastMaintenance'] = editingRow.lastMaintenance;
+        updates['assignedTo'] = editingRow.assignedTo;
+      } else if (selectedTab === 'materials') {
+        updates['material'] = editingRow.material;
+        updates['quantity'] = editingRow.quantity;
+        updates['unit'] = editingRow.unit;
+        updates['status'] = editingRow.status;
       }
 
-      await update(ref(database, `DataQuery/${selectedOption}/${editingItem.firebaseKey}`), updates);
-      setEditingItem(null);
+      await update(ref(database, `DataQuery/${selectedTab}/${editingRow.firebaseKey}`), updates);
+      setEditingRow(null);
       alert('Changes saved successfully!');
     } catch (error) {
       console.error('Error updating item:', error);
@@ -296,7 +301,7 @@ const AdministratorPage = () => {
   const handleDelete = async (firebaseKey) => {
     if (window.confirm('Are you sure you want to delete this resource?')) {
       try {
-        await remove(ref(database, `DataQuery/${selectedOption}/${firebaseKey}`));
+        await remove(ref(database, `DataQuery/${selectedTab}/${firebaseKey}`));
         alert('Resource deleted successfully');
       } catch (error) {
         console.error('Error deleting resource:', error);
@@ -307,232 +312,171 @@ const AdministratorPage = () => {
 
   // Auto-assign resources based on priority
   const autoAssignResources = async () => {
-  setIsLoading(true);
-  setAssignmentStatus('Assigning resources...');
-  
-  try {
-    // Get all assessments that need resources
-    const pendingAssessments = assessments.filter(
-      a => (a.status === 'assessed' || a.status === 'on_hold') && 
-            a.resources && 
-            (a.resources.labour || a.resources.equipment || a.resources.materials)
-    );
+    setIsLoading(true);
+    setAssignmentStatus('Assigning resources...');
+    
+    try {
+      // Get all assessments that need resources
+      const pendingAssessments = assessments.filter(
+        a => (a.status === 'assessed' || a.status === 'on_hold') && 
+              a.resources && 
+              (a.resources.labour || a.resources.equipment || a.resources.materials)
+      );
 
-    if (pendingAssessments.length === 0) {
-      setAssignmentStatus('No assessments need resources or assessments are missing resource requirements');
-      return;
-    }
-
-    // Get fresh snapshots of all data
-    const [machinesSnapshot, personnelSnapshot, materialsSnapshot] = await Promise.all([
-      get(ref(database, 'DataQuery/machines')),
-      get(ref(database, 'DataQuery/personal')),
-      get(ref(database, 'DataQuery/materials'))
-    ]);
-
-    let machinesData = machinesSnapshot.val() || {};
-    let personnelData = personnelSnapshot.val() || {};
-    const materialsData = materialsSnapshot.val() || {};
-
-    // Convert to array and mark which resources are available
-    let availableMachines = Object.entries(machinesData)
-      .filter(([_, m]) => m.status === 'active' && !m.assignedTo)
-      .map(([key, m]) => ({ ...m, firebaseKey: key, assigned: false }));
-
-    let availablePersonnel = Object.entries(personnelData)
-      .filter(([_, p]) => p.status === 'active' && !p.assignedTo)
-      .map(([key, p]) => ({ ...p, firebaseKey: key, assigned: false }));
-
-    const updates = {};
-    let anyAssigned = false;
-
-    // Sort assessments by priority
-    const prioritizedAssessments = [...pendingAssessments].sort(
-      (a, b) => (localityPriority[a.localityType?.toLowerCase()] || 4) - 
-                (localityPriority[b.localityType?.toLowerCase()] || 4)
-    );
-
-    for (const assessment of prioritizedAssessments) {
-      const { id, resources, roadName } = assessment;
-      const assignmentName = roadName || `job-${id}`;
-
-      const assignmentResources = {
-        equipment: [],
-        labour: [],
-        materials: []
-      };
-
-      let hasAllResources = true;
-
-      // Check and assign equipment
-      if (resources?.equipment) {
-        for (const [type, needed] of Object.entries(resources.equipment)) {
-          const available = availableMachines
-            .filter(m => m.type === type && !m.assigned)
-            .slice(0, needed);
-
-          if (available.length < needed) {
-            hasAllResources = false;
-            break;
-          }
-
-          assignmentResources.equipment.push(...available.map(m => m.id));
-          
-          // Mark machines as assigned
-          available.forEach(m => {
-            m.assigned = true;
-            updates[`DataQuery/machines/${m.firebaseKey}/assignedTo`] = assignmentName;
-          });
-        }
+      if (pendingAssessments.length === 0) {
+        setAssignmentStatus('No assessments need resources or assessments are missing resource requirements');
+        return;
       }
 
-      // Check and assign personnel
-      if (hasAllResources && resources?.labour) {
-        for (const [role, needed] of Object.entries(resources.labour)) {
-          const available = availablePersonnel
-            .filter(p => p.role === role && !p.assigned)
-            .slice(0, needed);
+      // Get fresh snapshots of all data
+      const [machinesSnapshot, personnelSnapshot, materialsSnapshot] = await Promise.all([
+        get(ref(database, 'DataQuery/machines')),
+        get(ref(database, 'DataQuery/personal')),
+        get(ref(database, 'DataQuery/materials'))
+      ]);
 
-          if (available.length < needed) {
-            hasAllResources = false;
-            break;
-          }
+      let machinesData = machinesSnapshot.val() || {};
+      let personnelData = personnelSnapshot.val() || {};
+      const materialsData = materialsSnapshot.val() || {};
 
-          assignmentResources.labour.push(...available.map(p => p.id));
-          
-          // Mark personnel as assigned
-          available.forEach(p => {
-            p.assigned = true;
-            updates[`DataQuery/personal/${p.firebaseKey}/assignedTo`] = assignmentName;
-          });
-        }
-      }
+      // Convert to array and mark which resources are available
+      let availableMachines = Object.entries(machinesData)
+        .filter(([_, m]) => m.status === 'active' && !m.assignedTo)
+        .map(([key, m]) => ({ ...m, firebaseKey: key, assigned: false }));
 
-      // Check and assign materials
-      if (hasAllResources && resources?.materials) {
-        for (const [material, needed] of Object.entries(resources.materials)) {
-          const materialEntry = Object.entries(materialsData).find(
-            ([_, m]) => m.material === material && 
-                        m.status === 'available' && 
-                        m.quantity >= needed
-          );
+      let availablePersonnel = Object.entries(personnelData)
+        .filter(([_, p]) => p.status === 'active' && !p.assignedTo)
+        .map(([key, p]) => ({ ...p, firebaseKey: key, assigned: false }));
 
-          if (!materialEntry) {
-            hasAllResources = false;
-            break;
-          }
+      const updates = {};
+      let anyAssigned = false;
 
-          const [firebaseKey, mat] = materialEntry;
-          assignmentResources.materials.push({
-            material,
-            quantity: needed,
-            firebaseKey
-          });
+      // Sort assessments by priority
+      const prioritizedAssessments = [...pendingAssessments].sort(
+        (a, b) => (localityPriority[a.localityType?.toLowerCase()] || 4) - 
+                  (localityPriority[b.localityType?.toLowerCase()] || 4)
+      );
 
-          // Update material quantity
-          updates[`DataQuery/materials/${firebaseKey}/quantity`] = mat.quantity - needed;
-          if (mat.quantity - needed <= 0) {
-            updates[`DataQuery/materials/${firebaseKey}/status`] = 'unavailable';
-          }
-        }
-      }
+      for (const assessment of prioritizedAssessments) {
+        const { id, resources, roadName } = assessment;
+        const assignmentName = roadName || `job-${id}`;
 
-      if (hasAllResources) {
-        // Create assignment
-        updates[`Assigned/${assignmentName}`] = {
-          ...assignmentResources,
-          assessmentId: id,
-          status: 'active',
-          timestamp: new Date().toISOString(),
-          localityType: assessment.localityType
+        const assignmentResources = {
+          equipment: [],
+          labour: [],
+          materials: []
         };
 
-        // Update assessment status
-        updates[`Assessments/${id}/status`] = 'in_progress';
-        anyAssigned = true;
-      } else {
-        // Not enough resources, mark as on hold
-        updates[`Assessments/${id}/status`] = 'on_hold';
-      }
-    }
+        let hasAllResources = true;
 
-    if (Object.keys(updates).length > 0) {
-      await update(ref(database), updates);
-    }
+        // Check and assign equipment
+        if (resources?.equipment) {
+          for (const [type, needed] of Object.entries(resources.equipment)) {
+            const available = availableMachines
+              .filter(m => m.type === type && !m.assigned)
+              .slice(0, needed);
 
-    if (anyAssigned) {
-      setAssignmentStatus('Resources assigned based on priority!');
-    } else {
-      setAssignmentStatus('No assessments could be assigned - insufficient resources');
-    }
-  } catch (error) {
-    console.error('Assignment error:', error);
-    setAssignmentStatus(`Error: ${error.message}`);
-  } finally {
-    setIsLoading(false);
-    setTimeout(() => setAssignmentStatus(''), 5000);
-  }
-};
+            if (available.length < needed) {
+              hasAllResources = false;
+              break;
+            }
 
-  // Check resource availability with fresh data
-  const checkResourceAvailability = async (assessment, machinesData, personnelData, materialsData) => {
-    const { resources, localityType } = assessment;
-    const availableResources = {
-      equipment: [],
-      labour: [],
-      materials: []
-    };
+            assignmentResources.equipment.push(...available.map(m => m.id));
+            
+            // Mark machines as assigned
+            available.forEach(m => {
+              m.assigned = true;
+              updates[`DataQuery/machines/${m.firebaseKey}/assignedTo`] = assignmentName;
+            });
+          }
+        }
 
-    // Check equipment
-    if (resources?.equipment) {
-      for (const [type, needed] of Object.entries(resources.equipment)) {
-        const available = Object.values(machinesData).filter(
-          machine => machine.type === type && 
-                    machine.status === 'active' && 
-                    !machine.assignedTo
-        ).slice(0, needed);
-        
-        availableResources.equipment.push(...available.map(m => m.id));
-      }
-    }
+        // Check and assign personnel
+        if (hasAllResources && resources?.labour) {
+          for (const [role, needed] of Object.entries(resources.labour)) {
+            const available = availablePersonnel
+              .filter(p => p.role === role && !p.assigned)
+              .slice(0, needed);
 
-    // Check labour
-    if (resources?.labour) {
-      for (const [role, needed] of Object.entries(resources.labour)) {
-        const available = Object.values(personnelData).filter(
-          person => person.role === role && 
-                    person.status === 'active' && 
-                    !person.assignedTo
-        ).slice(0, needed);
-        
-        availableResources.labour.push(...available.map(p => p.id));
-      }
-    }
+            if (available.length < needed) {
+              hasAllResources = false;
+              break;
+            }
 
-    // Check materials
-    if (resources?.materials) {
-      for (const [material, needed] of Object.entries(resources.materials)) {
-        const available = Object.values(materialsData).find(
-          m => m.material === material && 
-                m.status === 'available' && 
-                m.quantity >= needed
-        );
-        
-        if (available) {
-          availableResources.materials.push({
-            material,
-            quantity: needed,
-            firebaseKey: Object.keys(materialsData).find(key => materialsData[key].material === material)
-          });
+            assignmentResources.labour.push(...available.map(p => p.id));
+            
+            // Mark personnel as assigned
+            available.forEach(p => {
+              p.assigned = true;
+              updates[`DataQuery/personal/${p.firebaseKey}/assignedTo`] = assignmentName;
+            });
+          }
+        }
+
+        // Check and assign materials
+        if (hasAllResources && resources?.materials) {
+          for (const [material, needed] of Object.entries(resources.materials)) {
+            const materialEntry = Object.entries(materialsData).find(
+              ([_, m]) => m.material === material && 
+                          m.status === 'available' && 
+                          m.quantity >= needed
+            );
+
+            if (!materialEntry) {
+              hasAllResources = false;
+              break;
+            }
+
+            const [firebaseKey, mat] = materialEntry;
+            assignmentResources.materials.push({
+              material,
+              quantity: needed,
+              firebaseKey
+            });
+
+            // Update material quantity
+            updates[`DataQuery/materials/${firebaseKey}/quantity`] = mat.quantity - needed;
+            if (mat.quantity - needed <= 0) {
+              updates[`DataQuery/materials/${firebaseKey}/status`] = 'unavailable';
+            }
+          }
+        }
+
+        if (hasAllResources) {
+          // Create assignment
+          updates[`Assigned/${assignmentName}`] = {
+            ...assignmentResources,
+            assessmentId: id,
+            status: 'active',
+            timestamp: new Date().toISOString(),
+            localityType: assessment.localityType
+          };
+
+          // Update assessment status
+          updates[`Assessments/${id}/status`] = 'in_progress';
+          anyAssigned = true;
+        } else {
+          // Not enough resources, mark as on hold
+          updates[`Assessments/${id}/status`] = 'on_hold';
         }
       }
-    }
 
-    return {
-      ...assessment,
-      availableResources,
-      localityPriority: localityPriority[localityType?.toLowerCase()] || 4
-    };
+      if (Object.keys(updates).length > 0) {
+        await update(ref(database), updates);
+      }
+
+      if (anyAssigned) {
+        setAssignmentStatus('Resources assigned based on priority!');
+      } else {
+        setAssignmentStatus('No assessments could be assigned - insufficient resources');
+      }
+    } catch (error) {
+      console.error('Assignment error:', error);
+      setAssignmentStatus(`Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => setAssignmentStatus(''), 5000);
+    }
   };
 
   // Render status badge
@@ -572,12 +516,16 @@ const AdministratorPage = () => {
   };
 
   return (
-    <div>
+    <div className="admin-page">
       <Navbar id={1} />
       <div className="admin-dashboard">
-        <div className="h1-top">
-          <h2>Resource Management</h2>
-          <div className="button-group">
+        
+        <div className="admin-header">
+          <div className="left">
+            <h2>Resource Management</h2>
+            <button onClick={() => navigate('/AdminSecurity')}>Manage Role(s)</button>
+          </div>
+          <div className="admin-actions">
             <button onClick={() => window.location.reload()}>Refresh Data</button>
             <button 
               onClick={autoAssignResources}
@@ -594,41 +542,41 @@ const AdministratorPage = () => {
           )}
         </div>
         
-        {/* Options selector */}
-        <div className="options">
-          <p 
-            className={`option ${selectedOption === 'personal' ? 'active' : ''}`}
-            onClick={() => setSelectedOption('personal')}
+        {/* Tab selector */}
+        <div className="admin-tabs">
+          <button 
+            className={`admin-tab ${selectedTab === 'personal' ? 'active' : ''}`}
+            onClick={() => setSelectedTab('personal')}
           >
             Personnel
-          </p>
-          <p 
-            className={`option ${selectedOption === 'machines' ? 'active' : ''}`}
-            onClick={() => setSelectedOption('machines')}
+          </button>
+          <button 
+            className={`admin-tab ${selectedTab === 'machines' ? 'active' : ''}`}
+            onClick={() => setSelectedTab('machines')}
           >
             Equipment
-          </p>
-          <p 
-            className={`option ${selectedOption === 'materials' ? 'active' : ''}`}
-            onClick={() => setSelectedOption('materials')}
+          </button>
+          <button 
+            className={`admin-tab ${selectedTab === 'materials' ? 'active' : ''}`}
+            onClick={() => setSelectedTab('materials')}
           >
             Materials
-          </p>
+          </button>
         </div>
 
         {/* Current Assignments */}
         <div className="current-assignments">
-          <h2>Current Assignments</h2>
+          <h3>Current Assignments</h3>
           {Object.keys(assignedResources).length === 0 ? (
             <p className="no-assignments">No active assignments</p>
           ) : (
-            <div className="assignment-grid">
+            <div className="assignments-grid">
               {Object.entries(assignedResources).map(([roadName, assignment]) => {
                 const assessment = assessments.find(a => a.id === assignment.assessmentId);
                 return (
                   <div key={roadName} className="assignment-card">
                     <div className="assignment-header">
-                      <h3>{roadName}</h3>
+                      <h4>{roadName}</h4>
                       {assignment.status && renderStatusBadge(assignment.status)}
                     </div>
                     {assessment && (
@@ -638,7 +586,7 @@ const AdministratorPage = () => {
                       </div>
                     )}
                     <div className="assignment-resources">
-                      <h4>Assigned Resources:</h4>
+                      <h5>Assigned Resources:</h5>
                       {assignment.labour?.length > 0 && (
                         <div className="resource-group">
                           <strong>Personnel:</strong>
@@ -677,131 +625,126 @@ const AdministratorPage = () => {
           )}
         </div>
 
-        {/* Data tables */}
-        {selectedOption && (
-          <div className="tabless">
-            <div className="hold">
-              <div className="tables-header">
-                {tablesHeaders[selectedOption].Header.map((header, index) => (
-                  <div key={index} className="header-cell">{header}</div>
-                ))}
-              </div>
-              <div className="tables-items">
-                {data.map((item, index) => (
-                  <div key={index} className="tables-rows">
-                    {tablesHeaders[selectedOption].accessors.map((accessor, i) => (
-                      <div key={i} className="tables-cell">
-                        {accessor === 'actions' ? (
-                          <div className="action-buttons">
-                            <button 
-                              className="edit-btn"
-                              onClick={() => handleEdit(item)}
-                            >
-                              Edit
-                            </button>
-                            <button 
-                              className="delete-btn"
-                              onClick={() => handleDelete(item.firebaseKey)}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ) : accessor === 'lastMaintenance' ? (
-                          formatDate(item[accessor])
-                        ) : editingItem?.firebaseKey === item.firebaseKey ? (
-                          accessor === 'status' ? (
-                            <select
-                              className="edit-dropdown"
-                              value={editingItem.status}
-                              onChange={(e) => setEditingItem({
-                                ...editingItem,
-                                status: e.target.value
-                              })}
-                            >
-                              {statusOptions[selectedOption].map(status => (
-                                <option key={status.value} value={status.value}>
-                                  {status.label}
-                                </option>
-                              ))}
-                            </select>
-                          ) : accessor === 'role' ? (
-                            <select
-                              className="edit-dropdown"
-                              value={editingItem.role}
-                              onChange={(e) => setEditingItem({
-                                ...editingItem,
-                                role: e.target.value
-                              })}
-                            >
-                              {personnelRoles.map(role => (
-                                <option key={role.value} value={role.value}>
-                                  {role.label}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              type={accessor === 'quantity' ? 'number' : 'text'}
-                              value={editingItem[accessor] || ''}
-                              onChange={(e) => setEditingItem({
-                                ...editingItem,
-                                [accessor]: e.target.value
-                              })}
-                              className="edit-input"
-                            />
-                          )
-                        ) : (
-                          accessor === 'assignedTo' ? (item[accessor] || 'Unassigned') :
-                          accessor === 'material' ? (item.material || item.name || '-') :
-                          item[accessor] || '-'
-                        )}
+        {/* Data table */}
+        <div className="admin-table-container">
+          <div className="admin-table-header">
+            {tableConfig[selectedTab].headers.map((header, index) => (
+              <div key={index} className="admin-table-header-cell">{header}</div>
+            ))}
+          </div>
+          <div className="admin-table-body">
+            {tableData.map((item, index) => (
+              <div key={index} className="admin-table-row">
+                {tableConfig[selectedTab].accessors.map((accessor, i) => (
+                  <div key={i} className="admin-table-cell">
+                    {accessor === 'actions' ? (
+                      <div className="action-buttons">
+                        <button 
+                          className="edit-btn"
+                          onClick={() => handleEdit(item)}
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          className="delete-btn"
+                          onClick={() => handleDelete(item.firebaseKey)}
+                        >
+                          Remove
+                        </button>
                       </div>
-                    ))}
+                    ) : accessor === 'lastMaintenance' ? (
+                      formatDate(item[accessor])
+                    ) : editingRow?.firebaseKey === item.firebaseKey ? (
+                      accessor === 'status' ? (
+                        <select
+                          className="edit-dropdown"
+                          value={editingRow.status}
+                          onChange={(e) => setEditingRow({
+                            ...editingRow,
+                            status: e.target.value
+                          })}
+                        >
+                          {statusOptions[selectedTab].map(status => (
+                            <option key={status.value} value={status.value}>
+                              {status.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : accessor === 'role' ? (
+                        <select
+                          className="edit-dropdown"
+                          value={editingRow.role}
+                          onChange={(e) => setEditingRow({
+                            ...editingRow,
+                            role: e.target.value
+                          })}
+                        >
+                          {personnelRoles.map(role => (
+                            <option key={role.value} value={role.value}>
+                              {role.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={accessor === 'quantity' ? 'number' : 'text'}
+                          value={editingRow[accessor] || ''}
+                          onChange={(e) => setEditingRow({
+                            ...editingRow,
+                            [accessor]: e.target.value
+                          })}
+                          className="edit-input"
+                        />
+                      )
+                    ) : (
+                      accessor === 'assignedTo' ? (item[accessor] || 'Unassigned') :
+                      accessor === 'material' ? (item.material || item.name || '-') :
+                      item[accessor] || '-'
+                    )}
                   </div>
                 ))}
               </div>
-            </div>
-            {editingItem && (
-              <div className="edit-controls">
-                <button 
-                  className="save-btn"
-                  onClick={handleSaveEdit}
-                >
-                  Save Changes
-                </button>
-                <button 
-                  className="cancel-btn"
-                  onClick={() => setEditingItem(null)}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
+            ))}
           </div>
-        )}
+          {editingRow && (
+            <div className="edit-controls">
+              <button 
+                className="save-btn"
+                onClick={handleSaveEdit}
+              >
+                Save Changes
+              </button>
+              <button 
+                className="cancel-btn"
+                onClick={() => setEditingRow(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Add Data Forms */}
-        <div className="add-Data">
-          {/* Personal Form */}
-          {selectedOption === 'personal' && (
+        <div className="admin-form-container">
+          {selectedTab === 'personal' && (
             <>
-              <h2>Add Personal</h2>
-              <form className="add-form" onSubmit={(e) => handleSubmit(e, 'personal')}>
+              <h3>Add Personnel</h3>
+              <form className="admin-form" onSubmit={(e) => handleSubmit(e, 'personal')}>
                 <div className="form-group">
-                  <h3>Name</h3>
+                  <label>Name</label>
                   <input 
                     type="text" 
                     placeholder="Enter name"
-                    value={formData.personal.name}
+                    value={formInputs.personal.name}
                     onChange={(e) => handleInputChange('personal', 'name', e.target.value)}
                     required
                   />
                 </div>
                 
                 <div className="form-group">
-                  <h3>Role</h3>
+                  <label>Role</label>
                   <select
-                    value={formData.personal.role}
+                    value={formInputs.personal.role}
                     onChange={(e) => handleInputChange('personal', 'role', e.target.value)}
                     required
                   >
@@ -813,9 +756,9 @@ const AdministratorPage = () => {
                 </div>
                 
                 <div className="form-group">
-                  <h3>Status</h3>
+                  <label>Status</label>
                   <select
-                    value={formData.personal.status}
+                    value={formInputs.personal.status}
                     onChange={(e) => handleInputChange('personal', 'status', e.target.value)}
                     required
                   >
@@ -826,20 +769,19 @@ const AdministratorPage = () => {
                   </select>
                 </div>
                 
-                <button type="submit" className="submit-btn">Add Personal</button>
+                <button type="submit" className="submit-btn">Add Personnel</button>
               </form>
             </>
           )}
 
-          {/* Machines Form */}
-          {selectedOption === 'machines' && (
+          {selectedTab === 'machines' && (
             <>
-              <h2>Add new Machine</h2>
-              <form className="add-form" onSubmit={(e) => handleSubmit(e, 'machines')}>
+              <h3>Add Equipment</h3>
+              <form className="admin-form" onSubmit={(e) => handleSubmit(e, 'machines')}>
                 <div className="form-group">
-                  <h3>Machine Type</h3>
+                  <label>Machine Type</label>
                   <select
-                    value={formData.machines.type}
+                    value={formInputs.machines.type}
                     onChange={(e) => handleInputChange('machines', 'type', e.target.value)}
                     required
                   >
@@ -851,9 +793,9 @@ const AdministratorPage = () => {
                 </div>
                 
                 <div className="form-group">
-                  <h3>Status</h3>
+                  <label>Status</label>
                   <select
-                    value={formData.machines.status}
+                    value={formInputs.machines.status}
                     onChange={(e) => handleInputChange('machines', 'status', e.target.value)}
                     required
                   >
@@ -865,28 +807,27 @@ const AdministratorPage = () => {
                 </div>
                 
                 <div className="form-group">
-                  <h3>Last Maintenance Date</h3>
+                  <label>Last Maintenance Date</label>
                   <input 
                     type="date" 
-                    value={formData.machines.lastMaintenance}
+                    value={formInputs.machines.lastMaintenance}
                     onChange={(e) => handleInputChange('machines', 'lastMaintenance', e.target.value)}
                   />
                 </div>
                 
-                <button type="submit" className="submit-btn">Add Machine</button>
+                <button type="submit" className="submit-btn">Add Equipment</button>
               </form>
             </>
           )}
 
-          {/* Materials Form */}
-          {selectedOption === 'materials' && (
+          {selectedTab === 'materials' && (
             <>
-              <h2>Add new Materials</h2>
-              <form className="add-form" onSubmit={(e) => handleSubmit(e, 'materials')}>
+              <h3>Add Materials</h3>
+              <form className="admin-form" onSubmit={(e) => handleSubmit(e, 'materials')}>
                 <div className="form-group">
-                  <h3>Material Name</h3>
+                  <label>Material Name</label>
                   <select
-                    value={formData.materials.name}
+                    value={formInputs.materials.name}
                     onChange={(e) => handleInputChange('materials', 'name', e.target.value)}
                     required
                   >
@@ -898,22 +839,22 @@ const AdministratorPage = () => {
                 </div>
                 
                 <div className="form-group">
-                  <h3>Unit</h3>
+                  <label>Unit</label>
                   <input 
                     type="text" 
                     placeholder="tons, kg, liters, etc" 
-                    value={formData.materials.unit}
+                    value={formInputs.materials.unit}
                     onChange={(e) => handleInputChange('materials', 'unit', e.target.value)}
                     required
                   />
                 </div>
                 
                 <div className="form-group">
-                  <h3>Initial Quantity</h3>
+                  <label>Initial Quantity</label>
                   <input 
                     type="number" 
                     placeholder="Enter quantity"
-                    value={formData.materials.quantity}
+                    value={formInputs.materials.quantity}
                     onChange={(e) => handleInputChange('materials', 'quantity', e.target.value)}
                     required
                     min="0"
@@ -922,9 +863,9 @@ const AdministratorPage = () => {
                 </div>
                 
                 <div className="form-group">
-                  <h3>Status</h3>
+                  <label>Status</label>
                   <select
-                    value={formData.materials.status}
+                    value={formInputs.materials.status}
                     onChange={(e) => handleInputChange('materials', 'status', e.target.value)}
                     required
                   >
@@ -942,6 +883,7 @@ const AdministratorPage = () => {
         </div>
       </div>
     </div>
+    
   );
 };
 

@@ -1,38 +1,88 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ref, get } from 'firebase/database';
+import { database } from '../../firebase/firebase';
 import './LoginPage.css';
 
 const LoginPage = () => {
     const [selectedRole, setSelectedRole] = useState(null);
     const [password, setPassword] = useState('');
     const [username, setUsername] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const roles = ['Clerk', 'Supervisor', 'Admin', 'Mayor'];
 
-    const handleLogin = () => {
-        if (!selectedRole) {
-            alert('Please select a role');
+    const handleLogin = async () => {
+        setError('');
+        setLoading(true);
+
+        if (!username || !password || !selectedRole) {
+            setError('All fields are required');
+            setLoading(false);
             return;
         }
 
-        // Here you would typically verify credentials first
-        // For now, we'll just navigate based on role
-        switch(selectedRole) {
-            case 'Clerk':
-                navigate('/CleckPage');
-                break;
-            case 'Supervisor':
-                navigate('/SupervisorPage');
-                break;
-            case 'Admin':
-                navigate('/AdministratorPage');
-                break;
-            case 'Mayor':
-                navigate('/MayorPage');
-                break;
-            default:
-                alert('Invalid role selected');
+        try {
+            // Check if user exists in database
+            const userRef = ref(database, `users/${username}`);
+            const snapshot = await get(userRef);
+
+            if (!snapshot.exists()) {
+                throw new Error('Invalid username or password');
+            }
+
+            const userData = snapshot.val();
+
+            // Verify password and role
+            if (userData.password !== password) {
+                throw new Error('Invalid username or password');
+            }
+
+            if (userData.role !== selectedRole) {
+                throw new Error(`You don't have ${selectedRole} privileges`);
+            }
+
+            // For Supervisor, check if district exists if required
+            if (selectedRole === 'Supervisor' && !userData.district) {
+                throw new Error('District information missing for supervisor');
+            }
+
+            // Login successful - navigate to appropriate page with user data
+            const userInfo = {
+                username: userData.username,
+                role: userData.role,
+                district: userData.district || null
+            };
+
+            switch(selectedRole) {
+                case 'Clerk':
+                    navigate('/CleckPage', { state: { user: userInfo } });
+                    break;
+                case 'Supervisor':
+                    navigate('/SupervisorPage', { state: { user: userInfo } });
+                    break;
+                case 'Admin':
+                    navigate('/AdministratorPage', { state: { user: userInfo } });
+                    break;
+                case 'Mayor':
+                    navigate('/MayorPage', { state: { user: userInfo } });
+                    break;
+                default:
+                    throw new Error('Invalid role selected');
+            }
+
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleLogin();
         }
     };
 
@@ -57,6 +107,7 @@ const LoginPage = () => {
                         placeholder="Enter your username" 
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
+                        onKeyPress={handleKeyPress}
                         className="inputs" 
                     />
                     <p>Password</p>
@@ -66,6 +117,7 @@ const LoginPage = () => {
                         placeholder="Enter your password" 
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        onKeyPress={handleKeyPress}
                         type="password" 
                     />
                 </div>
@@ -73,16 +125,30 @@ const LoginPage = () => {
                 <div className="roles-grid">
                     {roles.map((role) => (
                         <div 
-                        key={role}
-                        className={`roles-items ${selectedRole === role ? 'selected' : ''}`}
-                        onClick={() => setSelectedRole(role)}
+                            key={role}
+                            className={`roles-items ${selectedRole === role ? 'selected' : ''}`}
+                            onClick={() => setSelectedRole(role)}
                         >
                             {role}
                         </div>
                     ))}
                 </div>
 
-                <button onClick={handleLogin}>Login</button>
+                <button onClick={handleLogin} disabled={loading}>
+                    {loading ? 'Logging in...' : 'Login'}
+                </button>
+                
+                {error && (
+                    <div className="error-message" style={{ 
+                        color: 'red', 
+                        marginTop: '10px',
+                        textAlign: 'center',
+                        fontSize: '14px'
+                    }}>
+                        {error}
+                    </div>
+                )}
+
                 <p className="FPW">Forgot password?</p>
             </div>
         </div>

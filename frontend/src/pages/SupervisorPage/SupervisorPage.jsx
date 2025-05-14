@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Navbar from '../../componets/Navbar/Navbar';
 import { database } from '../../firebase/firebase';
 import { ref, onValue, update, get } from "firebase/database";
@@ -6,14 +7,18 @@ import { supervisorAssessment } from '../../firebase/firebaseFunctions';
 import './SupervisorPage.css';
 
 const SupervisorPage = () => {
+  const location = useLocation();
+  const { user } = location.state || {};
+  
   // State for complaints data
   const [allComplaints, setAllComplaints] = useState([]);
   const [filteredComplaints, setFilteredComplaints] = useState([]);
-  const [assignedComplaints, setAssignedComplaints] = useState([]);
+  const [assignedTasks, setAssignedTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState('Pending');
   const [selectedIssueType, setSelectedIssueType] = useState('');
+  const [userDistrict, setUserDistrict] = useState('');
 
   // Resource options organized by issue type
   const resourceOptions = {
@@ -70,6 +75,21 @@ const SupervisorPage = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
+  // Get user district on component mount
+  useEffect(() => {
+    if (user && user.username) {
+      const userRef = ref(database, `users/${user.username}`);
+      get(userRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          const userData = snapshot.val();
+          setUserDistrict(userData.district || '');
+        }
+      }).catch((error) => {
+        console.error("Error fetching user data:", error);
+      });
+    }
+  }, [user]);
+
   // Get relevant resources based on issue type
   const getRelevantResources = (issueType) => {
     if (!issueType) return resourceOptions.default;
@@ -87,7 +107,6 @@ const SupervisorPage = () => {
     const selectedComplaint = allComplaints.find(c => c.ref === ref);
     if (selectedComplaint) {
       setSelectedIssueType(selectedComplaint.issueType || '');
-      // Reset resource selections when changing complaint
       setCurrentResource({
         material: { type: '', quantity: 0 },
         equipment: { type: '', quantity: 0 },
@@ -113,8 +132,6 @@ const SupervisorPage = () => {
       } else {
         setAllComplaints([]);
       }
-    }, (error) => {
-      console.error("Error fetching complaints: ", error);
     });
 
     const unsubscribeAssigned = onValue(assignedRef, (snapshot) => {
@@ -122,15 +139,12 @@ const SupervisorPage = () => {
       if (data) {
         const assignedArray = Object.entries(data).map(([key, value]) => ({
           ...value,
-          id: key
+          assignmentId: key
         }));
-        setAssignedComplaints(assignedArray);
+        setAssignedTasks(assignedArray);
       } else {
-        setAssignedComplaints([]);
+        setAssignedTasks([]);
       }
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching assigned data: ", error);
       setLoading(false);
     });
 
@@ -140,20 +154,29 @@ const SupervisorPage = () => {
     };
   }, []);
 
-  // Filter complaints based on active tab
+  // Filter complaints based on active tab and district
   useEffect(() => {
     if (activeTab === 'view schedule') {
-      // We'll handle the schedule view separately
-      setFilteredComplaints([]);
+      // Match complaints with assigned tasks by assessmentId
+      const scheduledComplaints = allComplaints.filter(complaint => {
+        const hasAssignment = assignedTasks.some(
+          assignment => assignment.assessmentId === complaint.assessmentId
+        );
+        return hasAssignment && 
+               complaint.locationArea && 
+               complaint.locationArea.toLowerCase() === userDistrict.toLowerCase();
+      });
+      setFilteredComplaints(scheduledComplaints);
     } else {
-      setFilteredComplaints(
-        allComplaints.filter(complaint => 
-          complaint.status === activeTab || 
-          (activeTab === 'Pending' && !complaint.status)
-        )
+      const filtered = allComplaints.filter(complaint => 
+        (complaint.status === activeTab || 
+        (activeTab === 'Pending' && !complaint.status)) &&
+        complaint.locationArea &&
+        complaint.locationArea.toLowerCase() === userDistrict.toLowerCase()
       );
+      setFilteredComplaints(filtered);
     }
-  }, [allComplaints, activeTab]);
+  }, [allComplaints, assignedTasks, activeTab, userDistrict]);
 
   // Mark complaint as completed
   const markAsCompleted = async (complaintRef) => {
@@ -161,10 +184,7 @@ const SupervisorPage = () => {
 
     try {
       setUpdatingStatus(true);
-      const db = database;
-
-      // 1. First, get the assessmentId from the Complaint
-      const complaintSnapshot = await get(ref(db, `Complaints/${complaintRef}`));
+      const complaintSnapshot = await get(ref(database, `Complaints/${complaintRef}`));
       if (!complaintSnapshot.exists()) {
         throw new Error("Complaint not found");
       }
@@ -174,15 +194,13 @@ const SupervisorPage = () => {
         throw new Error("No linked assessment found");
       }
 
-      // 2. Update both nodes
       const updates = {};
       updates[`Complaints/${complaintRef}/status`] = 'completed';
       updates[`Assessments/${assessmentId}/status`] = 'completed';
       updates[`Assessments/${assessmentId}/orderStatus`] = 'completed';
 
-      await update(ref(db), updates);
+      await update(ref(database), updates);
 
-      // 3. Update local state
       setAllComplaints(prev => 
         prev.map(complaint => 
           complaint.ref === complaintRef ? { ...complaint, status: 'completed' } : complaint
@@ -304,7 +322,6 @@ const SupervisorPage = () => {
       await supervisorAssessment(selectedComplaintRef, assessmentData);
       
       setSubmitSuccess(true);
-      
       setAllComplaints(prev => prev.map(complaint => 
         complaint.ref === selectedComplaintRef ? {...complaint, status: 'assessed'} : complaint
       ));
@@ -330,7 +347,8 @@ const SupervisorPage = () => {
 
   // Get priority score for sorting
   const getPriorityScore = (localityType) => {
-    switch (localityType) {
+    if (!localityType) return 0;
+    switch (localityType.toLowerCase()) {
       case 'commercial': return 4;
       case 'industrial': return 3;
       case 'mixed': return 2;
@@ -345,10 +363,10 @@ const SupervisorPage = () => {
 
   return (
     <div className='supervisor-page'>
-      <Navbar id={2} />
+      <Navbar id={2} user={user} />
       <div className="supervisor-container">
         <div className="h1-top">
-          <h1>Complaint Management</h1>
+          <h1>Complaint Management - {userDistrict} District</h1>
           <div className="status-tabs">
             <button 
               className={`tab-button ${activeTab === 'Pending' ? 'active' : ''}`}
@@ -377,13 +395,9 @@ const SupervisorPage = () => {
           </div>
         </div>
         
-        {errorMessage && (
-          <div className="error-message">
-            {errorMessage}
-          </div>
-        )}
+        {errorMessage && <div className="error-message">{errorMessage}</div>}
         
-        {activeTab !== 'view schedule' && (
+        {activeTab !== 'view schedule' ? (
           <div className="today-report">
             {filteredComplaints.length > 0 ? (
               filteredComplaints.map((complaint) => (
@@ -415,77 +429,80 @@ const SupervisorPage = () => {
                 </div>
               ))
             ) : (
-              <p>No {activeTab.toLowerCase()} complaints found</p>
+              <p>No {activeTab.toLowerCase()} complaints found in {userDistrict} district</p>
             )}
           </div>
-        )}
-
-        {activeTab === 'view schedule' && (
+        ) : (
           <div className="schedule-view">
-            <h2>Repair Schedule</h2>
-            {assignedComplaints.length > 0 ? (
+            <h2>Repair Schedule - {userDistrict} District</h2>
+            {filteredComplaints.length > 0 ? (
               <div className="schedule-list">
-                {assignedComplaints
-                  .sort((a, b) => getPriorityScore(b.localityType) - getPriorityScore(a.localityType))
-                  .map((assignment) => {
-                    // Find the corresponding complaint
-                    const complaint = allComplaints.find(c => c.assessmentId === assignment.id);
+                {filteredComplaints
+                  .sort((a, b) => {
+                    const assignmentA = assignedTasks.find(ass => ass.assessmentId === a.assessmentId);
+                    const assignmentB = assignedTasks.find(ass => ass.assessmentId === b.assessmentId);
+                    return getPriorityScore(assignmentB?.localityType) - getPriorityScore(assignmentA?.localityType);
+                  })
+                  .map((complaint) => {
+                    const assignment = assignedTasks.find(ass => ass.assessmentId === complaint.assessmentId);
+                    const localityType = assignment?.localityType || '';
+                    
                     return (
-                      <div key={assignment.id} className="schedule-item">
+                      <div key={complaint.ref} className="schedule-item">
                         <div className="schedule-header">
-                          <h3>
-                            {complaint ? `REF#${complaint.ref} - ${complaint.roadName}` : `Assignment ID: ${assignment.id}`}
-                          </h3>
-                          <span className={`priority-badge ${assignment.localityType}`}>
-                            {assignment.localityType.toUpperCase()}
-                          </span>
+                          <h3>REF#{complaint.ref} - {complaint.roadName || 'Unknown Road'}</h3>
+                          {localityType && (
+                            <span className={`priority-badge ${localityType}`}>
+                              {localityType.toUpperCase()}
+                            </span>
+                          )}
                         </div>
                         
-                        {complaint && (
-                          <div className="schedule-complaint-info">
-                            <p><strong>Issue:</strong> {complaint.issueType}</p>
-                            <p><strong>Location:</strong> {complaint.locationArea}</p>
-                            <p><strong>Description:</strong> {complaint.description}</p>
+                        <div className="schedule-complaint-info">
+                          <p><strong>Issue:</strong> {complaint.issueType || 'Unknown'}</p>
+                          <p><strong>Location:</strong> {complaint.locationArea || 'Unknown'}</p>
+                          <p><strong>Description:</strong> {complaint.description || 'No description'}</p>
+                        </div>
+                        
+                        {assignment && (
+                          <div className="schedule-assignment-info">
+                            <h4>Assigned Resources</h4>
+                            <div className="resource-cards">
+                              {assignment.equipment && assignment.equipment.length > 0 && (
+                                <div className="resource-card">
+                                  <h5>Equipment</h5>
+                                  <ul>
+                                    {assignment.equipment.map((eq, index) => (
+                                      <li key={index}>{eq || 'Unknown equipment'}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              
+                              {assignment.labour && assignment.labour.length > 0 && (
+                                <div className="resource-card">
+                                  <h5>Personnel</h5>
+                                  <ul>
+                                    {assignment.labour.map((emp, index) => (
+                                      <li key={index}>{emp || 'Unknown personnel'}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="schedule-status">
+                              <p><strong>Status:</strong> <span className="status-text">{assignment.status || 'unknown'}</span></p>
+                              <p><strong>Assigned on:</strong> {assignment.timestamp ? new Date(assignment.timestamp).toLocaleString() : 'Unknown date'}</p>
+                            </div>
                           </div>
                         )}
-                        
-                        <div className="schedule-assignment-info">
-                          <h4>Assigned Resources</h4>
-                          <div className="resource-cards">
-                            {assignment.equipment && assignment.equipment.length > 0 && (
-                              <div className="resource-card">
-                                <h5>Equipment</h5>
-                                <ul>
-                                  {assignment.equipment.map((eq, index) => (
-                                    <li key={index}>{eq}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                            
-                            {assignment.labour && assignment.labour.length > 0 && (
-                              <div className="resource-card">
-                                <h5>Personnel</h5>
-                                <ul>
-                                  {assignment.labour.map((emp, index) => (
-                                    <li key={index}>{emp}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="schedule-status">
-                          <p><strong>Status:</strong> <span className="status-text">{assignment.status}</span></p>
-                          <p><strong>Assigned on:</strong> {new Date(assignment.timestamp).toLocaleString()}</p>
-                        </div>
                       </div>
                     );
                   })}
               </div>
             ) : (
-              <p>No assigned repairs in the schedule</p>
+              <p>No assigned repairs in the schedule for {userDistrict} district</p>
             )}
           </div>
         )}
@@ -505,7 +522,11 @@ const SupervisorPage = () => {
                 >
                   <option value="">Select a complaint</option>
                   {allComplaints
-                    .filter(c => c.status === 'Pending' || !c.status)
+                    .filter(c => 
+                      (c.status === 'Pending' || !c.status) &&
+                      c.locationArea &&
+                      c.locationArea.toLowerCase() === userDistrict.toLowerCase()
+                    )
                     .map(complaint => (
                       <option key={complaint.ref} value={complaint.ref}>
                         REF#{complaint.ref} - {complaint.roadName} - {complaint.issueType}
