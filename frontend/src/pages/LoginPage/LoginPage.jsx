@@ -151,6 +151,7 @@ const LoginPage = () => {
 
                 <p className="FPW">Forgot password?</p>
             </div>
+            <p>For testing purposes: Select Admin, username: Admin and password: Admin</p>
         </div>
     );
 };
