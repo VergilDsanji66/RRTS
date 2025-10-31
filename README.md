@@ -132,9 +132,6 @@ async def create_complaint(complaint: Complaint):
 3. Commit changes with descriptive messages.
 4. Push to your fork and open a pull request.
 
-## License
-
-Add a LICENSE file (e.g., MIT, Apache 2.0) to specify project licensing.
 
 ## Acknowledgments
 
