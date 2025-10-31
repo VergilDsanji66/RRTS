@@ -31,7 +31,7 @@ cd RRTS
 ```
 
 2. **Backend (Python + Firebase Functions)**
-
+ 
 Set up the Python backend and Firebase functions.
 
 - Create and activate a virtual environment (recommended):
@@ -39,8 +39,8 @@ Set up the Python backend and Firebase functions.
 ```bash
 cd backend
 python3 -m venv venv
-source venv/bin/activate  # On Linux/macOS
-# venv\Scripts\activate  # On Windows (PowerShell use: .\\venv\\Scripts\\Activate.ps1)
+# source venv/bin/activate  # On Linux/macOS
+venv\Scripts\activate  # On Windows (PowerShell use: .\venv\Scripts\Activate.ps1)
 ```
 
 - Install Python dependencies:
@@ -76,8 +76,9 @@ Set up the frontend React app and Firebase dependencies.
 ```bash
 cd frontend
 # install Firebase and React dependencies
-npm install firebase react react-dom
-# optionally install/create a React app scaffold, e.g., using Vite or Create React App
+npm install firebase 
+npm create vite@latest
+npm install react-router-dom
 # npx create-react-app .
 ```
 
@@ -85,7 +86,7 @@ npm install firebase react react-dom
 - Start the frontend dev server:
 
 ```bash
-npm start
+npm run dev
 ```
 
 4. **Firebase Console Setup**
